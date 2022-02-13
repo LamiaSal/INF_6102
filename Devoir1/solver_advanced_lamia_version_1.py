@@ -21,21 +21,21 @@ def solve(schedule):
 
 
     # evaluation with choice 2 in course so we use simutanously kambe chaine
-    evaluation_result_star, nb_creneaux_star,nb_conflicts_star = naive_evaluation(schedule,solution)
+    #evaluation_result_star, nb_creneaux_star,nb_conflicts_star = naive_evaluation(schedule,solution)
     #evaluation_result_star, nb_creneaux_star,nb_conflicts_star = advanced_evaluation_no_conflicts(schedule,solution)
 
     # evaluation with choice 3 in course but we should not use kambe chaine and hard constraint
     #evaluation_result_star, nb_creneaux_star,nb_conflicts_star = advanced_evaluation_with_conflicts(schedule,solution)
-    #evaluation_result_star, nb_creneaux_star,nb_conflicts_star = advanced_evaluation_valid_and_notValid_sol(schedule,solution)
+    evaluation_result_star, nb_creneaux_star,nb_conflicts_star = advanced_evaluation_valid_and_notValid_sol(schedule,solution)
 
     
-    while current_time - begin_time <= 120 :
+    while current_time - begin_time <= 1200 :
 
         # evaluating the solution beforehand
-        evaluation_result, nb_creneaux,nb_conflicts= naive_evaluation(schedule,solution)
+        #evaluation_result, nb_creneaux,nb_conflicts= naive_evaluation(schedule,solution)
         #evaluation_result,nb_creneaux,nb_conflicts = advanced_evaluation_no_conflicts(schedule,solution)
         #evaluation_result,nb_creneaux,nb_conflicts = advanced_evaluation_with_conflicts(schedule,solution)
-        #evaluation_result,nb_creneaux,nb_conflicts = advanced_evaluation_valid_and_notValid_sol(schedule,solution)
+        evaluation_result,nb_creneaux,nb_conflicts = advanced_evaluation_valid_and_notValid_sol(schedule,solution)
         
         # we take the course that has the most conflicts
         # TODO : piste d'amélioration pour la séléction
@@ -65,10 +65,10 @@ def solve(schedule):
             #solution_neigbour_bis = kambe_neighbourhood_fonction(solution,selected_course,i)
         
             # evaluate the nieghbour solution
-            evaluation_result_n,nb_creneaux_n,nb_conflicts_n = naive_evaluation(schedule,solution_neigbour_bis)
+            #evaluation_result_n,nb_creneaux_n,nb_conflicts_n = naive_evaluation(schedule,solution_neigbour_bis)
             #evaluation_result_n,nb_creneaux_n,nb_conflicts_n = advanced_evaluation_no_conflicts(schedule,solution_neigbour_bis)
             #evaluation_result_n,nb_creneaux_n,nb_conflicts_n = advanced_evaluation_with_conflicts(schedule,solution_neigbour_bis)
-            #evaluation_result_n,nb_creneaux_n,nb_conflicts_n = advanced_evaluation_valid_and_notValid_sol(schedule,solution_neigbour_bis)
+            evaluation_result_n,nb_creneaux_n,nb_conflicts_n = advanced_evaluation_valid_and_notValid_sol(schedule,solution_neigbour_bis)
 
 
             if evaluation_result_n <= evaluation_result and nb_conflicts_n==0: 
@@ -190,7 +190,7 @@ def advanced_evaluation_valid_and_notValid_sol(schedule, solution):
     for val in list(schedule.course_list):
         evaluation_result_product += conflict_list_sum[val]*slots_list_sum[val]
 
-    return evaluation_result_product - evaluation_result_slot, nb_creneaux,nb_conflicts
+    return 2*evaluation_result_product - evaluation_result_slot, nb_creneaux,nb_conflicts
 
 '''
 def kambe_neighbourhood_fonction(solution_neigbour_bis):
