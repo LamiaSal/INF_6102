@@ -1,3 +1,4 @@
+
 import time
 import random
 
@@ -14,6 +15,7 @@ def solve(schedule):
 
     nb_courses =len(schedule.course_list)
 
+    # TODO : piste d'amélioration
     #solution = generateInitialSolution(schedule)
     solution = generateInitialSolutionNaive(schedule)
 
@@ -27,15 +29,15 @@ def solve(schedule):
 
 
     
-    while current_time - begin_time <= 1200 :
+    while current_time - begin_time <= 100 :
         nb_creneaux = schedule.get_n_creneaux(solution)
         nb_conflicts = sum(solution[a[0]] == solution[a[1]] for a in schedule.conflict_list)
         evaluation_result = nb_creneaux + nb_conflicts
 
     
         # we take the course that has the most conflicts
-        # TODO
-        
+        # TODO : piste d'amélioration pour la séléction
+        '''
         conflict_list=dict()
         for (k,l) in list(schedule.conflict_list):
             if k in conflict_list.keys() :
@@ -48,9 +50,8 @@ def solve(schedule):
             else:
                 conflict_list[l] =1
         
-        #selected_course = max(conflict_list, key=lambda key: conflict_list[key])
-        
-
+        selected_course = max(conflict_list, key=lambda key: conflict_list[key])
+        '''
         # we take a course randomly
         selected_course = random.sample(schedule.course_list.items(), 1)[0][0] #TODO
 
@@ -59,8 +60,12 @@ def solve(schedule):
 
             # we change the slot of the considered course
             solution_neigbour_bis = solution.copy()
-            solution_neigbour_bis[selected_course] = i #TODO
 
+            # fonction de voisinage
+            #TODO: amélioorer avec la chiaane de Kempe
+            solution_neigbour_bis[selected_course] = i
+
+            
         
             # A MODIFIER
             nb_creneaux_ = schedule.get_n_creneaux(solution_neigbour_bis)
@@ -112,5 +117,8 @@ def generateInitialSolutionNaive(schedule):
     return solution
 '''
 def fonction_evaluation():
-    # TODO
+    # TODO : minimiser les conflits (cf formule du cours - maximiser les groupes de cours à numéros de créneau unique
+
+def fonction_neighbourhood():
+    # TODO : amélioorer avec la chaine de Kempe
 '''
