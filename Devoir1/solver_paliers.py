@@ -30,14 +30,17 @@ def solve(schedule):
     start_time = time.time()
     stagnation = 0
 
+    palier = 0
+    inner = 0
     # Recherche par paliers
     while time.time() < max_duration + start_time :
+        palier += 1
 
         # Solution initiale
         solution = greedy_init_k(constraints, k)
 
         # Matrice de coût de transition pour accélérer le calcul du meilleur voisin
-        cost_matrix = np.zeros((n,k), dtype=np.uint64)
+        cost_matrix = np.zeros((n,k), dtype=np.int64)
 
         # Fonction d'évaluation
         nb_conflits = 0
@@ -50,8 +53,8 @@ def solve(schedule):
                     if i == l:
                         nb_conflits += 1
                     for j in range(k):
-                        cost_matrix[x,j] += (l == j) - (l == i)
-                        cost_matrix[y, j] += (i == j) - (i == l)
+                        cost_matrix[x,j] += int((l == j)) - int((l == i))
+                        cost_matrix[y, j] += int((i == j)) - int((i == l))
 
         # Initialisation de la tabu queue
         if n < 20:
@@ -64,7 +67,8 @@ def solve(schedule):
         tabu = deque()
 
         # Recherche locale pour satisfaction à k couleurs
-        while nb_conflits > 0 and time.time() < max_duration + start_time and stagnation < patience:
+        while nb_conflits > 0 and time.time() < max_duration + start_time:
+            inner += 1
 
             # Sélection du meilleur voisin non tabou
             ind1, ind2 = np.unravel_index(np.argsort(cost_matrix, axis=None), cost_matrix.shape)
@@ -74,6 +78,7 @@ def solve(schedule):
                 x,j = ind1[m], ind2[m]
                 if (x,j) not in tabu:
                     break
+                m += 1
 
             # Mise à jour de la solution et du nombre de conflits
             nb_conflits += cost_matrix[x,j]
@@ -81,9 +86,9 @@ def solve(schedule):
             solution[x] = j
 
             # Mise à jour de la matrice des coûts
-            for y in np.nonzero(constraints[x]):
+            for y in np.nonzero(constraints[x].transpose())[0]:
                 if solution[y] != i:
-                    cost_matrix[y,i] -= 1
+                    cost_matrix[y, i] -= 1
                 if solution[y] != j:
                     cost_matrix[y, j] += 1
                 if solution[y] == j:
@@ -97,6 +102,7 @@ def solve(schedule):
                             cost_matrix[y, c] += 1
                         cost_matrix[x, c] += 1
 
+
             # Mise à jour de la tabu queue
             tabu.appendleft((x,j))
 
@@ -104,15 +110,20 @@ def solve(schedule):
                 old_tabu_length = tabu_length
                 tabu_length = round(rd.randint(1, 11) + 0.6 * nb_conflits)
 
-            for _ in range(old_tabu_length - tabu_length):
-                tabu.pop()
+            for _ in range(int(old_tabu_length - tabu_length)):
+                if tabu:
+                    tabu.pop()
 
         if nb_conflits == 0:  # Si on a réussi on continue au palier suivant
             best_sol = solution.copy()
             k -= 1
+        elif nb_conflits < 0:
+            raise(Exception("Evaluation des conflits négative"))
         else:  # Arrivé ici on est forcément sortie de la boucle par manque de temps donc fin
             break
 
+    print(palier)
+    print(inner)
     return dict(zip(schedule.course_list, best_sol.tolist()))
 
 

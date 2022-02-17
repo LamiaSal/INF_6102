@@ -12,7 +12,7 @@ def solve(schedule):
     :param schedule: object describing the input
     :return: a list of tuples of the form (c,t) where c is a course and t a time slot. 
     """
-    max_duration = 120
+    max_duration = 60
     patience = 200 #TODO : implémenter la patience dans la sous recherche pour utiliser au mieux le temps et faire un restart
 
 
@@ -30,8 +30,12 @@ def solve(schedule):
     start_time = time.time()
     stagnation = 0
 
+    ILS = 0
+    inner = 0
+
     # Recherche par paliers
     while time.time() < max_duration + start_time : #Boucle ILS
+        ILS += 1
 
         # Mémoire pour fonction d'évaluation
         nb_conflits = np.zeros(n)
@@ -52,18 +56,24 @@ def solve(schedule):
             tabu_length = 1
             old_tabu_length = 1
         else:
-            tabu_length = round(rd.randint(1, 11) + 0.6 * nb_conflits)  # sqrt ? nb de noeuds en conflits ?
+            tabu_length = round(rd.randint(1, 11) + 0.6 * np.sum(nb_conflits))  # sqrt ? nb de noeuds en conflits ?
             old_tabu_length = tabu_length
 
         tabu = deque()
+        for _ in range(int(tabu_length)):
+            tabu.appendleft((-1,-1))
+
+        minima = False
 
         # Recherche locale
         while time.time() < max_duration + start_time and stagnation < patience:
+            inner += 1
 
             # Sélection du premier voisin améliorant non tabou
             voisin = voisinage_first(n, k, solution, constraints, score, colors, nb_conflits, tabu)
 
-            if voisin == (-1, -1):  # Si on ne peut pas améliorer on est dans un minima local, on restart
+            if voisin == -1:  # Si on ne peut pas améliorer on est dans un minima local, on restart
+                minima = True
                 break
 
             # Mise à jour de la mémoire et du nombre de couleurs
@@ -82,23 +92,25 @@ def solve(schedule):
 
             if n >= 20:
                 old_tabu_length = tabu_length
-                tabu_length = round(rd.randint(1, 11) + 0.6 * nb_conflits)
+                tabu_length = round(rd.randint(1, 11) + 0.6 * np.sum(nb_conflits))
 
-            for _ in range(old_tabu_length - tabu_length):
-                tabu.pop()
+            for _ in range(int(old_tabu_length - tabu_length)):
+                if tabu:
+                    tabu.pop()
 
-        if solution.max() < best_k:  # On garde la solution si elle est meilleure
+        if solution.max() < best_k and minima:  # On garde la solution si elle est meilleure
             best_sol = solution.copy()
             best_k = solution.max()
 
-        if time.time() < max_duration + start_time or stagnation < patience:
+        if time.time() > max_duration + start_time:
             break
 
         # Arrivé ici on veut faire un restart en essayant de sortir du minima local
         solution = perturbation_greedy(solution, constraints, 0.1)
         k = solution.max()
 
-
+    print(ILS)
+    print(inner)
     return dict(zip(schedule.course_list, best_sol.tolist()))
 
 
@@ -145,7 +157,7 @@ def voisinage_first(n, k, solution, constraints, score, colors, nb_conflits, tab
             if not (x,j) in tabu:
                 added_j = 0
                 removed_i = 0
-                for y in np.nonzero(constraints[x]):
+                for y in np.nonzero(constraints[x].transpose())[0]:
                     l = solution[y]
                     if l == i:
                         removed_i += 1
@@ -158,9 +170,9 @@ def voisinage_first(n, k, solution, constraints, score, colors, nb_conflits, tab
                 nb_conflits_temp[i] -= removed_i
                 nb_conflits_temp[j] += added_j
                 #scoretemp = score + ((colors[i]-1)**2 - colors[i]**2 + (colors[j]+1)**2 - colors[j]**2) - 2 * (nb_conflits[i] + colors[i]*removed_i - removed_i) + 2 * (nb_conflits[j] + colors[j]*added_j - added_j)
-                scoretemp = np.sum(2 * nb_conflits * colors) - np.sum(np.square(colors))
+                scoretemp = np.sum(2 * nb_conflits_temp * coltemp) - np.sum(np.square(coltemp))
                 if scoretemp < score:
-                    return (x, j, scoretemp, added_j, removed_i)
+                    return x, j, scoretemp, added_j, removed_i
 
     return -1
 
@@ -175,16 +187,16 @@ def perturbation_search_repair():
 
 def perturbation_greedy(solution, constraints, gamma):
     n = len(solution)
-    colors = rd.sample(range(0, solution.max()),round(solution.max() * gamma))
+    colors = rd.sample(range(0, int(solution.max())), int(round(solution.max() * gamma)))
     for x in range(n):
         if solution[x] in colors:
-            solution[x] = n+1
+            solution[x] = n+1  # On utilise n+1 pour tag les cases vides
 
     for i in range(n):
         if solution[i] == n+1 :
             colors = np.zeros(n)
             for j in range(n):
-                if constraints[i,j]:
+                if solution[j] != n+1 and constraints[i,j]:
                     colors[solution[j]] += 1
             solution[i] = np.argmin(colors)
 
