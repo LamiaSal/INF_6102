@@ -1,0 +1,9 @@
+init 33 couleurs
+final 33 couleurs
+
+1 boucle palier
+1 184 337 boucles internes
+
+tabu list corrigée
+greedy init with min tie break
+greedy init k with min tie break

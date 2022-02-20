@@ -1,4 +1,5 @@
-import solver_direct as sd
+
+import solver_direct_greedy as sd
 
 def solve(schedule):
     """

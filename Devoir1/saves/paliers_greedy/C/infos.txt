@@ -1,0 +1,11 @@
+init 22 couleurs
+final 19 couleurs
+
+équivalent au test de 2min
+
+3 boucle palier
+2 821 574 boucles internes
+
+tabu list
+greedy init with min tie break
+greedy init k avec random tie break

@@ -1,0 +1,10 @@
+init 33 couleurs
+final 33 couleurs
+
+8 boucles ILS
+761 boucles internes
+
+pas de tabu list
+greedy init with min tie break
+greedy reparation
+diversification acceptance criterion 

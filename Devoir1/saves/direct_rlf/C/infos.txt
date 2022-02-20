@@ -1,0 +1,12 @@
+init 15 couleurs
+final 15 couleurs (voire 16)
+
+run de 10 sec
+
+34 boucles ILS
+36 boucles internes
+
+avec tabu list
+init rlf
+greedy reparation avec min tie break
+intensification acceptance criterion 

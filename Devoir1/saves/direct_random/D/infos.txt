@@ -1,0 +1,10 @@
+init 32 couleurs
+final 32 couleurs
+
+144 boucles ILS
+7740 boucles internes
+
+avec tabu list
+random init sur la base d'une taille de greedy init
+random reparation
+diversification acceptance criterion 

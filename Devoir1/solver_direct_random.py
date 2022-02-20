@@ -11,7 +11,7 @@ def solve(schedule):
     :return: a list of tuples of the form (c,t) where c is a course and t a time slot. 
     """
     start_time = time.time()
-    print("Solveur par paliers")
+    print("Solveur direct")
 
     max_duration = 1200
     patience = 200 #TODO : implémenter la patience dans la sous recherche pour utiliser au mieux le temps et faire un restart
@@ -22,112 +22,101 @@ def solve(schedule):
 
 
     #initialisation générale
-    solution = RLF_init(constraints)
+    solution = greedy_init(constraints)
     print("Init finished")
-    k = solution.max() + 1
-    print("k Init : " + str(k))
+    best_k = solution.max()
+    print("k Init : " + str(best_k + 1))
     best_sol = solution.copy()
+    k = best_k
 
-    k -= 1  # On démarre la recherche par paliers au niveau de la solution gourmande
+    solution = random_init(n, k + 1)
+
 
     stagnation = 0
 
-    palier = 0
+    ILS = 0
     inner = 0
-    # Recherche par paliers
+
+    # Boucle ILS
     while time.time() < max_duration + start_time :
-        palier += 1
+        ILS += 1
 
-        # Solution initiale
-        solution = greedy_init_k(constraints, k)
-
-        # Matrice de coût de transition pour accélérer le calcul du meilleur voisin
-        cost_matrix = np.zeros((n, k), dtype=np.int64)
-
-        # Fonction d'évaluation
-        nb_conflits = 0
+        # Mémoire pour fonction d'évaluation
+        nb_conflits = np.zeros(n)
+        colors = np.bincount(solution)
+        colors.resize(n)
 
         for x in range(n):
             i = solution[x]
             for y in range(x):  # On traite les voisins inférieurs pour éviter les duplications
                 if constraints[x,y]:
-                    l = solution[y]
-                    if i == l:
-                        nb_conflits += 1
-                    for j in range(k):
-                        cost_matrix[x,j] += int((l == j)) - int((l == i))
-                        cost_matrix[y, j] += int((i == j)) - int((i == l))
+                    if i == solution[y]:
+                        nb_conflits[i] += 1
+
+        score = np.sum(2 * nb_conflits * colors) - np.sum(np.square(colors))
 
         # Initialisation de la tabu queue
         if n < 20:
             tabu_length = 1
             old_tabu_length = 1
         else:
-            tabu_length = round(rd.randint(1, 11) + 0.6 * nb_conflits)  # sqrt ? nb de noeuds en conflits ?
+            tabu_length = round(rd.randint(1, 11) + 0.6 * np.sum(nb_conflits))  # sqrt ? nb de noeuds en conflits ?
             old_tabu_length = tabu_length
 
         tabu = deque()
         for _ in range(int(tabu_length)):
-            tabu.appendleft((-1, -1))
+            tabu.appendleft((-1,-1))
 
-        # Recherche locale pour satisfaction à k couleurs
-        while nb_conflits > 0 and time.time() < max_duration + start_time:
+        minima = False
+
+        # Recherche locale
+        while time.time() < max_duration + start_time and stagnation < patience:
             inner += 1
 
-            # Sélection du meilleur voisin non tabou (pas forcément améliorant)
-            ind1, ind2 = np.unravel_index(np.argsort(cost_matrix, axis=None), cost_matrix.shape)
-            v = len(ind1)
-            m = 0
-            while m < v:
-                x,j = ind1[m], ind2[m]
-                if (x,j) not in tabu:
-                    break
-                m += 1
+            # Sélection du premier voisin améliorant non tabou
+            voisin = voisinage_first(n, k, solution, constraints, score, colors, nb_conflits, tabu)
 
-            # Mise à jour de la solution et du nombre de conflits
-            nb_conflits += cost_matrix[x,j]
-            i = solution[x]
-            solution[x] = j
+            if voisin == -1:  # Si on ne peut pas améliorer on est dans un minima local, on restart
+                minima = True
+                break
 
-            # Mise à jour de la matrice des coûts
-            for y in np.nonzero(constraints[x].transpose())[0]:
-                if solution[y] != i:
-                    cost_matrix[y, i] -= 1
-                if solution[y] != j:
-                    cost_matrix[y, j] += 1
-                if solution[y] == j:
-                    for c in range(k):
-                        if c != j:
-                            cost_matrix[y, c] -= 1
-                        cost_matrix[x, c] -= 1
-                if solution[y] == i:
-                    for c in range(k):
-                        if c != i:
-                            cost_matrix[y, c] += 1
-                        cost_matrix[x, c] += 1
+            # Mise à jour de la mémoire et du nombre de couleurs
+            colors[solution[voisin[0]]] -= 1
+            colors[voisin[1]] += 1
+            nb_conflits[voisin[1]] += voisin[3]
+            nb_conflits[solution[voisin[0]]] -= voisin[4]
 
+            # Mise à jour du score
+            score = voisin[2]
+            solution[voisin[0]] = voisin[1]
+            k = solution.max()
 
             # Mise à jour de la tabu queue
-            tabu.appendleft((x,j))
+            tabu.appendleft((voisin[0],voisin[1]))
 
             if n >= 20:
                 old_tabu_length = tabu_length
-                tabu_length = round(rd.randint(1, 11) + 0.6 * nb_conflits)
+                tabu_length = round(rd.randint(1, 11) + 0.6 * np.sum(nb_conflits))
 
             for _ in range(int(old_tabu_length - tabu_length)):
                 if tabu:
                     tabu.pop()
 
-        if nb_conflits == 0:  # Si on a réussi on continue au palier suivant
+        if solution.max() < best_k and minima:  # On garde la solution si elle est meilleure
             best_sol = solution.copy()
-            k -= 1
-        elif nb_conflits < 0:
-            raise(Exception("Evaluation des conflits négative"))
-        else:  # Arrivé ici on est forcément sortie de la boucle par manque de temps donc fin
+            best_k = solution.max()
+
+        if time.time() > max_duration + start_time:
             break
 
-    print("Nb de paliers :", palier)
-    print("Nb de boucles :", inner)
+        # Arrivé ici on veut faire un restart en essayant de sortir du minima local
+        #solution = perturbation_greedy(solution, constraints, 0.1)  # Diversification
+        #solution = perturbation_greedy(best_sol, constraints, 0.1)  # Intensification
+        solution = perturbation_random(solution, 0.1)  # Random
+        k = solution.max()
+
+    print("Nb de boucles ILS :" + str(ILS))
+    print("Nb de boucles internes :" + str(inner))
     return dict(zip(schedule.course_list, best_sol.tolist()))
 
 
@@ -140,27 +129,6 @@ def greedy_init(constraints):
         for j in range(n):
             if constraints[i,j]:
                 colors[res[j]] += 1
-        res[i] = np.argmin(colors)
-
-    return res
-
-
-def greedy_init_k(constraints, k):
-    '''
-    Init greedy à k couleurs, on essaye de minimiser les conflits sinon random tie break
-    :param constraints:
-    :param k:
-    :return:
-    '''
-    n = len(constraints)
-    res = np.zeros(n, dtype=np.uint16)
-
-    for i in range(n):
-        colors = np.zeros(k)
-        for j in range(n):
-            if constraints[i,j]:
-                colors[res[j]] += 1
-        #res[i] = np.random.choice(np.flatnonzero(colors == colors.min()))
         res[i] = np.argmin(colors)
 
     return res
@@ -266,3 +234,87 @@ def dsatur_init(constraints):
             saturation[i] = len(np.unique(colors[i, :])) - 1
 
     return solution
+
+
+def voisinage_min():
+    pass
+
+
+def voisinage_maxmin():
+    pass
+
+
+def voisinage_complet():
+    pass
+
+
+def voisinage_first(n, k, solution, constraints, score, colors, nb_conflits, tabu):
+    for x in range(n):
+        i = solution[x]
+        for j in range(k + 1):
+            if not (x,j) in tabu:
+                added_j = 0
+                removed_i = 0
+                for y in np.nonzero(constraints[x].transpose())[0]:
+                    l = solution[y]
+                    if l == i:
+                        removed_i += 1
+                    if l == j:
+                        added_j += 1
+                coltemp = colors.copy()
+                coltemp[i] -= 1
+                coltemp[j] += 1
+                nb_conflits_temp = nb_conflits.copy()
+                nb_conflits_temp[i] -= removed_i
+                nb_conflits_temp[j] += added_j
+                #scoretemp = score + ((colors[i]-1)**2 - colors[i]**2 + (colors[j]+1)**2 - colors[j]**2) - 2 * (nb_conflits[i] + colors[i]*removed_i - removed_i) + 2 * (nb_conflits[j] + colors[j]*added_j - added_j)
+                scoretemp = np.sum(2 * nb_conflits_temp * coltemp) - np.sum(np.square(coltemp))
+                if scoretemp < score:
+                    return x, j, scoretemp, added_j, removed_i
+
+    return -1
+
+
+def voisinage_sample():
+    pass
+
+
+def perturbation_search_repair():
+    pass
+
+
+def perturbation_random(solution, gamma):
+    n = len(solution)
+    k = solution.max() + 1
+    colors = rd.sample(range(0, int(solution.max())), int(round(solution.max() * gamma)))
+    for x in range(n):
+        if solution[x] in colors:
+            solution[x] = n+1  # On utilise n+1 pour tag les cases vides
+
+    for i in range(n):
+        if solution[i] == n+1:
+            solution[i] = np.random.randint(k)
+
+    return solution
+
+
+def perturbation_greedy(solution, constraints, gamma):
+    n = len(solution)
+    colors = rd.sample(range(0, int(solution.max())), int(round(solution.max() * gamma)))
+    for x in range(n):
+        if solution[x] in colors:
+            solution[x] = n + 1  # On utilise n+1 pour tag les cases vides
+
+    for i in range(n):
+        if solution[i] == n + 1:
+            colors = np.zeros(n)
+            for j in range(n):
+                if solution[j] != n + 1 and constraints[i, j]:
+                    colors[solution[j]] += 1
+            solution[i] = np.argmin(colors)
+
+    return solution
+
+
+def perturbation_dsatur():
+    pass
