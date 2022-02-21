@@ -23,11 +23,17 @@ def solve(schedule):
 
 
     #initialisation générale
-    solution = RLF_init(constraints)
+    best_sol = RLF_init(constraints)
+    best_k = best_sol.max()
+    for i in range(20):
+        solution = RLF_init(constraints)
+        k = solution.max()
+        if k < best_k:
+            best_sol = solution.copy()
+            best_k = k
     print("Init finished")
-    best_k = solution.max()
     print("k Init : " + str(best_k + 1))
-    best_sol = solution.copy()
+    solution = best_sol.copy()
     k = best_k
 
     ILS = 0
