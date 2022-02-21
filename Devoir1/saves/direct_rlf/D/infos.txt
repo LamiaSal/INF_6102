@@ -1,9 +1,9 @@
-init 15 couleurs
-final 15 couleurs (voire 16)
+init 31 couleurs
+final 31 couleurs
 
 
-3875 boucles ILS
-4160 boucles internes
+240 boucles ILS
+2585 boucles internes
 
 avec tabu list
 init rlf

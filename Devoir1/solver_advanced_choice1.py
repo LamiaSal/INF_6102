@@ -13,11 +13,12 @@ def solve(schedule):
     start_time = time.time()
     print("Solveur par paliers")
 
-    max_duration = 1200
-    patience = 200 #TODO : implémenter la patience dans la sous recherche pour utiliser au mieux le temps et faire un restart
+    max_duration = 1200  # Temps alloué
 
-
+    # On représente le graphe par sa matrice d'adjacence
     constraints = nx.to_numpy_matrix(schedule.conflict_graph, dtype=np.uint8)
+
+    # Une solution est un tableau de taille n avec la couleur assignée à chaque noeud
     n = len(constraints)
 
 
@@ -30,23 +31,24 @@ def solve(schedule):
 
     k -= 1  # On démarre la recherche par paliers au niveau de la solution gourmande
 
-    stagnation = 0
-
     palier = 0
     inner = 0
+
     # Recherche par paliers
-    while time.time() < max_duration + start_time :
+    while time.time() < max_duration + start_time :  # On s'arrête de tester de nouveaux paliers à la fin du temps
         palier += 1
 
         # Solution initiale
         solution = greedy_init_k(constraints, k)
 
         # Matrice de coût de transition pour accélérer le calcul du meilleur voisin
+        # cost_matrix[x,j] est le coût ajouté à l'évaluation si le noeud x prend la valeur j
         cost_matrix = np.zeros((n, k), dtype=np.int64)
 
         # Fonction d'évaluation
         nb_conflits = 0
 
+        # Initialisation de la matrice de coût de transition et de l'évaluation pour la solutions initiale
         for x in range(n):
             i = solution[x]
             for y in range(x):  # On traite les voisins inférieurs pour éviter les duplications
@@ -60,10 +62,12 @@ def solve(schedule):
 
         # Initialisation de la tabu queue
         if n < 20:
+            # On n'interdit que le dernier mouvement pour les petites instances
             tabu_length = 1
             old_tabu_length = 1
         else:
-            tabu_length = round(rd.randint(1, 11) + 0.6 * nb_conflits)  # sqrt ? nb de noeuds en conflits ?
+            # La taille de la queue diminue quand on améliore la solution pour une meilleure diversification
+            tabu_length = round(rd.randint(1, 11) + 0.6 * nb_conflits)
             old_tabu_length = tabu_length
 
         tabu = deque()
@@ -118,6 +122,7 @@ def solve(schedule):
                 if tabu:
                     tabu.pop()
 
+        # Une fois la recherche finie on regarde si on continue
         if nb_conflits == 0:  # Si on a réussi on continue au palier suivant
             best_sol = solution.copy()
             k -= 1
@@ -132,6 +137,11 @@ def solve(schedule):
 
 
 def greedy_init(constraints):
+    '''
+    Init greedy, on prends la couleur minimale disponible poru chaque noeud
+    :param constraints: matrice d'adjacence
+    :return res: solution
+    '''
     n = len(constraints)
     res = np.zeros(n, dtype=np.uint16)
 
@@ -148,9 +158,9 @@ def greedy_init(constraints):
 def greedy_init_k(constraints, k):
     '''
     Init greedy à k couleurs, on essaye de minimiser les conflits sinon random tie break
-    :param constraints:
-    :param k:
-    :return:
+    :param constraints: matrice d'adjacence
+    :param k: nombre de couleurs max
+    :return res: solution
     '''
     n = len(constraints)
     res = np.zeros(n, dtype=np.uint16)
@@ -169,26 +179,40 @@ def greedy_init_k(constraints, k):
 def random_init(n, k):
     '''
     Init total random
-    :param n:
-    :param k:
-    :return:
+    :param n: nombre de noeuds
+    :param k: nombres de couleurs
+    :return: une solution aléatoire
     '''
     return np.random.randint(k, size=n)
 
 
 def RLF_init(constraints):
+    '''
+    Algorithme RLF. Priorise les noeuds qui créent les plus grosses contraintes et olore simultanément les noeuds qui ne se contraignent pas entre eux
+    :param constraints: matrice d'adjacence
+    :return solution: solution
+    '''
     n = len(constraints)
     solution = np.zeros(n, dtype=np.uint16)
+    # Graphe des noeuds libres
     uncolored_graph = constraints.copy()
     uncolored_nodes = list(np.arange(n))
     k = 0
+    # Temps qu'on a des noeuds libres on génère un ensemble à colorer d'une même couleur
     while uncolored_nodes:
+        # Le noeud initial a le plsu de voisins non colorés
         initial = uncolored_nodes[np.argmax(np.sum(uncolored_graph[uncolored_nodes, :], axis=1))]
+        # Liste des nouds de la partition
         color_nodes = [initial]
+
+        # Noeuds libre dans la boucle
         open_nodes = uncolored_nodes.copy()
         open_graph = uncolored_graph.copy()
+
+        # Graphe de noeuds ayant au moins un voisin dans la partition choisie
         adjacent_graph = np.zeros(constraints.shape, dtype=np.uint8)
 
+        # Initialisationd es graphes
         open_nodes.remove(initial)
         open_graph[initial, :] = np.full((1, n), 0)
         open_graph[:, initial] = np.full((n, 1), 0)
@@ -201,10 +225,14 @@ def RLF_init(constraints):
         open_graph[neighbours, :] = np.full((len(neighbours), n), 0)
         open_graph[:, neighbours] = np.full((n, len(neighbours)), 0)
 
+        # On complète la partition
         while open_nodes:
+            # On choisit en priorité le noeuds qui qui le plus de voisins déjà contraints par les noeuds de la partition
             adjacent_counts = np.sum(adjacent_graph[open_nodes, :], axis=1)
             selected = np.array(open_nodes)[np.argwhere(adjacent_counts == adjacent_counts.max())[:, 0]]
             open_counts = np.sum(open_graph[selected, :], axis=1)
+
+            # On sépare les égalités en privilégiant les voisins les moins contraigants sur les neoeuds encore ouverts et non adjacents
             subselected = selected[np.argwhere(open_counts == open_counts.min())[:, 0]]
             final = np.random.choice(subselected)
             color_nodes.append(final)
@@ -221,6 +249,7 @@ def RLF_init(constraints):
             open_graph[final, :] = np.full((1, n), 0)
             open_graph[:, final] = np.full((n, 1), 0)
 
+        # On applique la partition déterminée
         for i in color_nodes:
             uncolored_nodes.remove(i)
 
@@ -229,12 +258,18 @@ def RLF_init(constraints):
 
         solution[color_nodes] = k
 
+        # On passe à la couleur suivante
         k = k + 1
 
     return solution
 
 
 def dsatur_init(constraints):
+    '''
+    Algorithme DSatur. Priorise les noeuds de haut degré avec déjà beaucoup de contraintes sur les couleurs libres
+    :param constraints: matrice d'adjacence
+    :return solution: solution
+    '''
     n = len(constraints)
     solution = np.zeros(n, dtype=np.uint16)
     uncolored_graph = constraints.copy()
@@ -242,19 +277,24 @@ def dsatur_init(constraints):
     colors = np.full((n, n + 1), n)
     saturation = np.zeros(n, dtype=np.uint16)
 
+    # On colore chaque noeud successivement
     while uncolored_nodes:
-        selected = np.array(uncolored_nodes)[
-            np.argwhere(saturation[uncolored_nodes] == saturation[uncolored_nodes].max())[:, 0]]
+        # On choisit le noeud avec le moins de couleurs disponible
+        selected = np.array(uncolored_nodes)[np.argwhere(saturation[uncolored_nodes] == saturation[uncolored_nodes].max())[:, 0]]
         uncolored_counts = np.sum(uncolored_graph[selected, :], axis=1)
+
+        # On sépare les égaux par le degré
         subselected = selected[np.argwhere(uncolored_counts == uncolored_counts.max())[:, 0]]
         final = np.random.choice(subselected)
         uncolored_nodes.remove(final)
 
+        # On attribue la plus petite couleur libre
         k = 0
         while k in colors[final, :]:
             k += 1
         solution[final] = k
 
+        # Mise à jour des mémoires
         uncolored_graph[final, :] = np.full(1, 0)
         uncolored_graph[:, final] = np.full(n, 0)
 

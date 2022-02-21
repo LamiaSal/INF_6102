@@ -99,3 +99,27 @@ def greedy_init(constraints):
         res[i] = np.argmin(colors)
 
     return res
+
+
+def voisinage_min():
+    pass
+
+
+def voisinage_maxmin():
+    pass
+
+
+def voisinage_complet():
+    pass
+
+
+def voisinage_sample():
+    pass
+
+
+def perturbation_search_repair():
+    pass
+
+
+def perturbation_dsatur():
+    pass
