@@ -193,10 +193,8 @@ def generateInitialSolution(schedule):
     seen_courses=[]
     not_seen_course=list(schedule.course_list)
     while len(not_seen_course)>0:
-        #print('yo',len(not_seen_course))
         index_course = random.randint(0,len(not_seen_course)-1)
 
-        #print(index_course)
         c=not_seen_course[index_course]
         slot=0
         done=False
@@ -227,7 +225,8 @@ def generateInitialSolution(schedule):
 
 
 def advanced_evaluation_no_conflicts(schedule, solution):
-    # TODO : minimiser les conflits (cf formule du cours - maximiser les groupes de cours à numéros de créneau unique
+    # evaluation function to minise the number of cnflicts
+    #  (cf formule on the report ) 
     nb_creneaux = schedule.get_n_creneaux(solution)
     nb_conflicts = sum(solution[a[0]] == solution[a[1]] for a in schedule.conflict_list)
     
