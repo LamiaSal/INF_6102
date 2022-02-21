@@ -32,7 +32,6 @@ def solve(schedule):
             best_sol = solution.copy()
             best_k = k
     print("Init finished")
-    print("k Init : " + str(best_k + 1))
     solution = best_sol.copy()
     k = best_k
 
