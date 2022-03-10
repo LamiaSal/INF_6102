@@ -37,11 +37,10 @@ def solve(mother):
         p_k_star= roulette(p_k) # TODO: A tester d'autres méthodes
 
         # Hybridation
-        c_k= generate_children(p_k_star)
+        c_k= crossing(p_k_star) # TODO : numpy, 2-point crossover
 
         #Mutation
-        m_k= mutation(c_k)
-
+        m_k= mutation(c_k) # TODO : Poisson/swap
 
         # Updating
         for s_k in m_k:
@@ -51,7 +50,7 @@ def solve(mother):
                 s_star= s_k
         
         # generate new population
-        p_k = generate_population(m_k,p_k)
+        p_k = generate_new_population(m_k,p_k) # TODO: point d'amélioration
 
     
     return s_star
@@ -78,7 +77,7 @@ def generate_population(n_components,n_zones, n_taille_population):
 def roulette(p_k):
     return None
 
-def generate_children(p_k_star):
+def crossing(p_k_star):
     return None
 
 def mutation(c_k):
@@ -87,5 +86,5 @@ def mutation(c_k):
 def f_eval():
     return None
 
-#def generate_population(p_k_1,m_k):
-#    return None
+def generate_new_population(m_k,p_k):
+    return m_k
