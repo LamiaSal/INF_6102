@@ -24,7 +24,7 @@ def solve(mother):
 
     best_cost = 10**10
     for s_k in p_k:
-        cost = f_eval(s_k)
+        cost = f_eval(mother, s_k)
         if cost < best_cost:
             best_cost = cost
             s_star = s_k
@@ -34,17 +34,17 @@ def solve(mother):
     while i<NB_GENERATION and t.time()-t0 < MAX_TIME:
 
         # Selection
-        p_k_star= roulette(p_k) # TODO: A tester d'autres méthodes
+        p_k_star= roulette(p_k) # TODO: A tester d'autres méthodes (LAMIA)
 
         # Hybridation
-        c_k= crossing(p_k_star) # TODO : numpy, 2-point crossover
+        c_k= crossing(p_k_star) # TODO : numpy, 2-point crossover (THEO)
 
         #Mutation
-        m_k= mutation(c_k) # TODO : Poisson/swap
+        m_k= mutation(c_k) # TODO : Poisson/swap (LAMIA)
 
         # Updating
         for s_k in m_k:
-            cost = f_eval(s_k)
+            cost = f_eval(mother, s_k)
             if cost < best_cost:
                 best_cost = cost
                 s_star= s_k
@@ -83,7 +83,8 @@ def crossing(p_k_star):
 def mutation(c_k):
     return None
 
-def f_eval():
+def f_eval(mother, solution):
+    mother.get_total_cost(solution)
     return None
 
 def generate_new_population(m_k,p_k):

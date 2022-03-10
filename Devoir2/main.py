@@ -45,8 +45,6 @@ if __name__ == '__main__':
 
     mother.display_solution(solution,args.visufile)
     mother.save_solution(solution, args.outfile)
-
-    solution = [0,2,1]
     
     print("***********************************************************")
     print("[INFO] Solution obtained")
