@@ -15,7 +15,7 @@ def solve(mother):
     N_COMPONENTS = mother.n_components
     MAX_TIME = 30
     N_TAILLE_POPULATION= 30 # TODO: A DEFINIR SELON LE PB
-    NB_GENERATION= 2 # TODO: A DEFINIR
+    NB_GENERATION= 1000 # TODO: A DEFINIR
 
 
 
@@ -45,7 +45,7 @@ def solve(mother):
         print("len(c_k)",len(c_k))
         #Mutation
         #TODO: paramter tuning : mut_rate adaptatif et lambda
-        m_k= permut_mutation(c_k,mother, mut_rate=0.3,lambda_p=1,sub_sample_size=0.4,poisson=True) # TODO : Poisson/swap/permutation (LAMIA)
+        m_k= permut_mutation(c_k,mother, mut_rate=0.9,lambda_p=1,sub_sample_size=0.4,poisson=True) # TODO : Poisson/swap/permutation (LAMIA)
 
         print("len(m_k)",len(m_k))
         # Updating
@@ -122,6 +122,8 @@ def roulette(population, mother):
 def tournament(population, mother, tournament_size):
 
     # costs for each solution of the population
+    assert len(population) % 2 == 0, "populationn size should be an even number"
+    assert len(population) >= tournament_size, "populationn size should be higher than the tournament size"
 
     r.shuffle(population)
     sol_costs=[]
@@ -204,12 +206,12 @@ def permut_mutation(c_k,mother, mut_rate=0.3,lambda_p=1,sub_sample_size=0.4,pois
     if poisson and lambda_p==1 :
         mut_rate=1/mother.n_components
     
-    nb_permut =  max(2,int(mother.n_components*0.4))
+    nb_permut =  min(mother.n_components,max(2,int(mother.n_components*0.4)))
 
     m_k=[]
     for sol in c_k:
         if poisson:
-            nb_permut = max(2,np.random.poisson(lambda_p))
+            nb_permut = min(mother.n_components,max(2,np.random.poisson(lambda_p)))
         Pr_mutation = r.random() #probability to mutate
 
         if Pr_mutation < mut_rate:
