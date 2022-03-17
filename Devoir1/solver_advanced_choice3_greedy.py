@@ -13,7 +13,7 @@ def solve(schedule):
     start_time = time.time()
     print("Solveur direct greedy")
 
-    max_duration = 1195  # Temps alloué
+    max_duration = 10  # Temps alloué
 
     # On représente le graphe par sa matrice d'adjacence
     constraints = nx.to_numpy_matrix(schedule.conflict_graph, dtype=np.uint8)
