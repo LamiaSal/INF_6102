@@ -16,7 +16,7 @@ def solve(mother):
     print("Solveur tabu")
 
     max_duration = 1200  # Temps alloué
-    patience = 200
+    patience = 30
 
     # On représente le graphe par ses matrices de flux et de distance
     dtype = np.dtype([("flow", np.uint8), ("dist", np.uint8)])
@@ -47,9 +47,6 @@ def solve(mother):
     while time.time() < max_duration + start_time:  # On s'arrête de tenter de nouvelles recherches à la fin du temps
         ILS += 1
 
-
-
-
         # Recherche locale pour satisfaction à k couleurs
         last_move = None
         stagnation = 0
@@ -60,35 +57,42 @@ def solve(mother):
             # Matrice de coût de transition pour accélérer le calcul du meilleur voisin
             # delta_matrix[i,j] est le coût ajouté à l'évaluation si on swap les positions des machines i et j
             if last_move is None:
-                delta_matrix = np.zeros((n, n), dtype=np.int16)
+                delta_matrix = np.full((n, n), np.iinfo(np.int16).max, dtype=np.int16)
+                for i in range(n):
+                    for j in range(i):
+                        new_sol = solution.copy()
+                        new_sol[i], new_sol[j] = solution[j], solution[i]
+                        delta_matrix[i, j] = np.sum((flows[new_sol][:,new_sol] * dists) - (flows[solution][:,solution] * dists))
             else:
                 u, v = last_move
                 for i in range(n):
                     for j in range(i):
-                        new_sol =  solution.copy()
+                        new_sol = solution.copy()
                         new_sol[i], new_sol[j] = solution[j], solution[i]
                         if i != u and j != v:
-                            #FIXME : évident pbm d'index, confusion machine/slot
+                            #TODO:Debug
                             delta_matrix[i, j] = delta_matrix[i, j] + 2 * (dists[u,i] - dists[u,j] + dists[v,j] - dists[v,i]) * (flows[new_sol[v],new_sol[i]] - flows[new_sol[v],new_sol[j]] + flows[new_sol[u],new_sol[j]] - flows[new_sol[u],new_sol[i]])
                         else:
-                            delta_matrix[i, j] = np.sum((flows[solution][:,solution] * dists) - (flows[new_sol][:,new_sol] * dists))
+                            delta_matrix[i, j] = np.sum((flows[new_sol][:,new_sol] * dists) - (flows[solution][:,solution] * dists))
 
             # Sélection du meilleur voisin non tabou (pas forcément améliorant)
-            ind1, ind2 = np.unravel_index(np.argsort(delta_matrix, axis=None), delta_matrix.shape) #FIXME:Pbm de tri apparemment
+            ind1, ind2 = np.unravel_index(np.argsort(delta_matrix, axis=None), delta_matrix.shape) #TODO:Debug
             v = len(ind1)
             m = 0
-            while m < v:
-                x, j = ind1[m], ind2[m]
-                if (x, j) not in tabu_dict:
+            i, j = ind1[m], ind2[m]
+            while j<i: #Les éléments de la moitié supérieure de la matrice sont en fin de liste et ne sont pas considérés
+                if cost + delta_matrix[i,j] < best_cost: #Critère d'aspiration
+                    break
+                elif tabu_dict[(i,solution[i])] + tabu_length < Tabu and tabu_dict[(j,solution[j])] + tabu_length < Tabu:
                     break
                 m += 1
+                i, j = ind1[m], ind2[m]
 
-            last_move = (x,j)
+            last_move = (i,j)
 
             # Mise à jour de la solution et du nombre de conflits
-            cost += delta_matrix[x, j]
-            i = solution[x]
-            solution[x] = j
+            cost += delta_matrix[i, j]
+            solution[i], solution[j] = solution[j], solution[i]
 
             # Mise à jour de la tabu queue
             tabu_dict[last_move] = Tabu
@@ -210,7 +214,7 @@ def greedy_init3(n, flows, dists):
     open_slots = list(np.arange(n))
     assigned_slots = []
     for i in range(n):
-        # FIXME:Y'a clairement un pbm quelque part
+        # TODO:Debug et check
         assigned_machines = solution[assigned_slots]
         open_flows = sum_flows[open_machines]
         assigned_flows = np.sum(flows[open_machines,assigned_machines], axis=1)
@@ -221,15 +225,21 @@ def greedy_init3(n, flows, dists):
 
         assigned_costs = np.sum(flows[solution[machine]][:, solution[assigned_slots]] * dists[:,assigned_slots], axis=1)
 
-        slot = open_slots[np.random.choice(np.argwhere(assigned_costs == assigned_costs.min())[:, 0])]
-        '''
+        #Tie braek aléatoire
+        #slot = open_slots[np.random.choice(np.argwhere(assigned_costs == assigned_costs.min())[:, 0])]
+
         #Tie Break par min distance unassigned
-        selected =
-        slot = open_slots[np.random.choice[np.argwhere(sum_dists == sum_dists.min())[:, 0]
-        '''
+        open_dists = sum_dists[open_slots]
+        assigned_dists = np.sum(dists[open_slots, assigned_slots], axis=1)
+        unassigned_dists = open_dists[selected] - assigned_dists[selected]
+        selected = np.argwhere(assigned_costs == assigned_costs.min())[:, 0]
+        subselected = np.array(open_slots)[selected[np.argwhere(unassigned_dists == unassigned_dists.max())[:, 0]]]
+        slot = np.random.choice(subselected)
+
         solution[slot] = machine
         open_machines.remove(machine)
         open_slots.remove(slot)
+        assigned_slots.add(slot)
 
     return solution
 
@@ -257,7 +267,7 @@ def idof():
 
 def perturbation_random(solution, gamma):
     n = len(solution)
-    removing = rng.choice(range(n, 2*round(solution.max() * gamma / 2)))
+    removing = rng.choice(n, 2*round(n * gamma / 2), replace=False)
     for i in range(len(removing)/2):
         solution[removing[i]], solution[removing[i+len(removing)/2]] = solution[removing[i+len(removing)/2]], solution[removing[i]]
 
@@ -265,4 +275,25 @@ def perturbation_random(solution, gamma):
 
 
 def perturbation_greedy(solution, flows, dists, gamma):
+    """
+    Perturbation et reconstruction greedy avec choix d'ordre aléatoire pour diversification
+    :param solution:
+    :param flows:
+    :param dists:
+    :param gamma:
+    :return:
+    """
+    #TODO:Debug et check
+    n = len(solution)
+    open_slots = list(rng.choice(n, round(n * gamma), replcae=False))
+    open_machines = solution[open_slots]
+    assigned_slots = [slot for slot in range(n) if slot not in open_slots]
+    for i in range(round(n * gamma)):
+        machine = rng.choice(open_machines)
+        assigned_costs = np.sum(flows[solution[machine]][:, solution[assigned_slots]] * dists[:, assigned_slots],axis=1)
+        slot = open_slots[np.random.choice(np.argwhere(assigned_costs == assigned_costs.min())[:, 0])]
+        solution[slot] = machine
+        open_machines.remove(machine)
+        open_slots.remove(slot)
+        assigned_slots.add(slot)
     return
