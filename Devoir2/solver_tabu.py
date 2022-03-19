@@ -15,9 +15,7 @@ def solve(mother):
     start_time = time.time()
     print("Solveur tabu")
 
-    max_duration = 10  # Temps alloué
-    patience = 5
-    n_init = 1000
+    max_duration = 1200  # Temps alloué
 
     # On représente le graphe par ses matrices de flux et de distance
     flows = nx.to_numpy_array(mother.graph, dtype=np.uint8, weight="flow")
@@ -26,14 +24,16 @@ def solve(mother):
     # Une solution est un tableau de taille n qui représente la machine attribué à chaque slot
     n = mother.n_components
 
+    patience = n * 10
+    n_init = 10000
+
     # Initialisation générale
-    sum = 0
-    best_cost = 10000000000
+    best_cost = 1000000
     best_sol = None
     for i in range(n_init):
         solution = greedy_init4(n, flows, dists)
-        cost = evaluation(solution, flows, dists)
-        sum += cost
+        #cost = evaluation(solution, flows, dists)
+        cost = mother.get_total_cost(solution)
         if cost < best_cost:
             best_cost = cost
             best_sol = solution
@@ -46,7 +46,7 @@ def solve(mother):
     keys = [ele for ele in product(range(n), repeat=2)]
     tabu_dict = dict.fromkeys(keys, -1)
     tabu_length = int(rng.integers(0.9 * n, 1.1 * n))
-    tabu_change = round(2.2 * n)
+    tabu_change = 0
 
     ILS = 0
     Tabu = 0
@@ -58,40 +58,44 @@ def solve(mother):
         # Recherche locale pour satisfaction à k couleurs
         last_move = None
         stagnation = 0
-        while stagnation < patience and time.time() < max_duration + start_time:
+        while (patience == -1 or stagnation < patience) and time.time() < max_duration + start_time:
             Tabu += 1
 
             # Calcul de la matrice de coût
             # Matrice de coût de transition pour accélérer le calcul du meilleur voisin
             # delta_matrix[i,j] est le coût ajouté à l'évaluation si on swap les positions des machines i et j
             if last_move is None:
-                delta_matrix = np.full((n, n), np.iinfo(np.int16).max, dtype=np.int32)
+                delta_matrix = np.full((n, n), np.iinfo(np.int32).max, dtype=np.int32)
                 for i in range(n):
                     for j in range(i):
                         new_sol = solution.copy()
                         new_sol[i], new_sol[j] = solution[j], solution[i]
-                        delta_matrix[i, j] = np.sum((flows[new_sol][:,new_sol] * dists) - (flows[solution][:,solution] * dists))
+                        #delta_matrix[i, j] = np.sum((flows[new_sol, :][:,new_sol] * dists) - (flows[solution, :][:, solution] * dists))
+                        delta_matrix[i,j] = mother.get_total_cost(new_sol)
             else:
                 u, v = last_move
                 for i in range(n):
                     for j in range(i):
                         new_sol = solution.copy()
                         new_sol[i], new_sol[j] = solution[j], solution[i]
-                        if i != u and j != v:
-                            #TODO:Debug
+                        '''if i != u and j != v:
+                            #FIXME: Calcul faux car les matrices de flow ne sont pas symétriques
                             delta_matrix[i, j] = delta_matrix[i, j] + 2 * (dists[u,i] - dists[u,j] + dists[v,j] - dists[v,i]) * (flows[new_sol[v],new_sol[i]] - flows[new_sol[v],new_sol[j]] + flows[new_sol[u],new_sol[j]] - flows[new_sol[u],new_sol[i]])
                         else:
-                            delta_matrix[i, j] = np.sum((flows[new_sol][:,new_sol] * dists) - (flows[solution][:,solution] * dists))
+                            #TODO: Optimiser car non optimal
+                            delta_matrix[i, j] = np.sum((flows[new_sol][:,new_sol] * dists) - (flows[solution][:,solution] * dists))'''
+                        #delta_matrix[i, j] = np.sum((flows[new_sol, :][:, new_sol] * dists) - (flows[solution, :][:, solution] * dists))
+                        delta_matrix[i, j] = mother.get_total_cost(new_sol)
 
             # Sélection du meilleur voisin non tabou (pas forcément améliorant)
-            ind1, ind2 = np.unravel_index(np.argsort(delta_matrix, axis=None), delta_matrix.shape) #TODO:Debug
-            v = len(ind1)
+            ind1, ind2 = np.unravel_index(np.argsort(delta_matrix, axis=None), delta_matrix.shape) #TODO:Debug et check
             m = 0
             i, j = ind1[m], ind2[m]
             while j<i: #Les éléments de la moitié supérieure de la matrice sont en fin de liste et ne sont pas considérés
-                if cost + delta_matrix[i,j] < best_cost: #Critère d'aspiration
+                #if cost + delta_matrix[i,j] < best_cost: #Critère d'aspiration
+                if delta_matrix[i,j] < best_cost:
                     break
-                elif tabu_dict[(i,solution[i])] + tabu_length < Tabu and tabu_dict[(j,solution[j])] + tabu_length < Tabu:
+                elif tabu_dict[(i, solution[i])] == -1 or tabu_dict[(j, solution[j])] == -1 or tabu_dict[(i, solution[i])] + tabu_length < Tabu or tabu_dict[(j, solution[j])] + tabu_length < Tabu:
                     break
                 m += 1
                 i, j = ind1[m], ind2[m]
@@ -99,17 +103,18 @@ def solve(mother):
             last_move = (i,j)
 
             # Mise à jour de la solution et du nombre de conflits
-            cost += delta_matrix[i, j]
+            #cost += delta_matrix[i, j]
+            cost = delta_matrix[i, j]
             solution[i], solution[j] = solution[j], solution[i]
 
             # Mise à jour de la tabu queue
-            tabu_dict[last_move] = Tabu
+            tabu_dict[(i,solution[i])] = Tabu
+            tabu_dict[(j, solution[j])] = Tabu
             if tabu_change == round(2.2 * n):
                 tabu_length = int(rng.integers(0.9 * n, 1.1 * n))
                 tabu_change = 0
             else:
                 tabu_change += 1
-
 
             if cost >= best_cost:
                 stagnation += 1
@@ -118,10 +123,11 @@ def solve(mother):
                 best_sol = solution.copy()
                 stagnation = 0
 
-        if stagnation >= patience:
+        if patience != -1 and stagnation >= patience:
             #Perturbation et restart
             solution = perturbation_greedy(solution, flows, dists, 0.1)
-            cost = evaluation(solution, flows, dists)
+            #cost = evaluation(solution, flows, dists)
+            cost = mother.get_total_cost(solution)
             if cost < best_cost:
                 best_cost = cost
                 best_sol = solution.copy()
