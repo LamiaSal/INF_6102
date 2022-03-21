@@ -1,7 +1,7 @@
 import argparse
 import time
 from mother_card import MotherCard
-import solver_tabu as st
+import solver_grasp as st
 import numpy as np
 import networkx as nx
 
@@ -32,7 +32,27 @@ if __name__ == '__main__':
 
     print("[INFO] Test informations:")
     #Tests here
-    test_type="search" #"init
+    test_type="search"
+
+    if test_type == "calcul":
+        values = np.random.randint(256926, 259758, size=12)
+        standard_values = (values - values.mean()) / values.std()
+        normal_standard_values = (standard_values - standard_values.min()) / (standard_values.max() - standard_values.min()) * 0.8 + 0.1
+        normal_standard_values = 1 / normal_standard_values
+        normal_standard_values = normal_standard_values / normal_standard_values.sum()
+        print(values)
+        print(normal_standard_values)
+        solution = st.random_init(n)
+
+    if test_type=="evaluation": #tests d'évaluation
+        sum = 0
+        for i in range(10000):
+            solution = st.random_init(n)
+            cost = st.evaluation(solution, flows, dists)
+            cost_ta = mother.get_total_cost(solution)
+            if cost == cost_ta:
+                sum += 1
+        print("Evaluation custom : " + str(sum))
 
     if test_type=="init": #tests d'initialisation
         n_tests = 1000

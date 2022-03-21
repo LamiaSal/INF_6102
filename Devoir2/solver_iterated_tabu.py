@@ -13,7 +13,7 @@ def solve(mother):
     :return: a list of integers of size n where the i-th element of the list is the component located in site i
     """
     start_time = time.time()
-    print("Solveur tabu")
+    print("Solveur iterated tabu")
 
     max_duration = 1200  # Temps alloué
 
@@ -42,6 +42,11 @@ def solve(mother):
     print("Cost Init : " + str(cost))
 
     delta_matrix = np.full((n, n), np.iinfo(np.int32).max, dtype=np.int32)
+    '''neigh = []
+    for i in range(n):
+        for j in range(i):
+            neigh.append((i,j))
+    delta_array = np.full(len(neigh), np.iinfo(np.int32).max, dtype=np.int32)'''
 
     # Initialisation du tabu dictionnary
     keys = [ele for ele in product(range(n), repeat=2)]
@@ -49,49 +54,83 @@ def solve(mother):
     tabu_length = int(rng.integers(0.9 * n, 1.1 * n))
     tabu_change = 0
 
+    ILS = 0
     Tabu = 0
 
-    while time.time() < max_duration + start_time:
-        Tabu += 1
+    # Recherche par paliers
+    while time.time() < max_duration + start_time:  # On s'arrête de tenter de nouvelles recherches à la fin du temps
+        ILS += 1
 
-        # Calcul de la matrice de voisinage
+        stagnation = 0
+        while (patience == -1 or stagnation < patience) and time.time() < max_duration + start_time:
+            Tabu += 1
 
-        for i in range(n):
-            for j in range(i):
+            # Calcul de la matrice de voisinage
+
+            for i in range(n):
+                for j in range(i):
+                    new_sol = solution.copy()
+                    new_sol[i], new_sol[j] = solution[j], solution[i]
+                    delta_matrix[i, j] = np.sum((flows * dists[new_sol, :][:,new_sol]))
+            '''for k,(i,j) in enumerate(neigh):
                 new_sol = solution.copy()
                 new_sol[i], new_sol[j] = solution[j], solution[i]
-                delta_matrix[i, j] = np.sum((flows * dists[new_sol, :][:,new_sol]))
+                delta_array[k] = np.sum((flows * dists[new_sol, :][:,new_sol]))'''
 
-        # Sélection du meilleur voisin non tabou (pas forcément améliorant)
-        ind1, ind2 = np.unravel_index(np.argsort(delta_matrix, axis=None), delta_matrix.shape)
-        m = 0
-        i, j = ind1[m], ind2[m]
-        while j<i: #Les éléments de la moitié supérieure de la matrice sont en fin de liste et ne sont pas considérés
-            if delta_matrix[i,j] < best_cost: #Critère d'aspiration
-                break
-            elif tabu_dict[(i, solution[i])] == -1 or tabu_dict[(j, solution[j])] == -1 or tabu_dict[(i, solution[i])] + tabu_length < Tabu or tabu_dict[(j, solution[j])] + tabu_length < Tabu:
-                break
-            m += 1
+            # Sélection du meilleur voisin non tabou (pas forcément améliorant)
+            ind1, ind2 = np.unravel_index(np.argsort(delta_matrix, axis=None), delta_matrix.shape)
+            m = 0
             i, j = ind1[m], ind2[m]
+            while j<i: #Les éléments de la moitié supérieure de la matrice sont en fin de liste et ne sont pas considérés
+                if delta_matrix[i,j] < best_cost: #Critère d'aspiration
+                    break
+                elif tabu_dict[(i, solution[i])] == -1 or tabu_dict[(j, solution[j])] == -1 or tabu_dict[(i, solution[i])] + tabu_length < Tabu or tabu_dict[(j, solution[j])] + tabu_length < Tabu:
+                    break
+                m += 1
+                i, j = ind1[m], ind2[m]
 
-        # Mise à jour de la solution et du nombre de conflits
-        cost = delta_matrix[i,j]
-        solution[i], solution[j] = solution[j], solution[i]
+            '''ind = np.argsort(delta_array)
+            for m in ind:
+                i, j = neigh[m]
+                if delta_array[m] < best_cost:  # Critère d'aspiration
+                    break
+                elif tabu_dict[(i, solution[i])] == -1 or tabu_dict[(j, solution[j])] == -1 or tabu_dict[(i, solution[i])] + tabu_length < Tabu or tabu_dict[(j, solution[j])] + tabu_length < Tabu:
+                    break'''
 
-        # Mise à jour de la tabu queue
-        tabu_dict[(i,solution[i])] = Tabu
-        tabu_dict[(j, solution[j])] = Tabu
-        if tabu_change == round(2.2 * n):
-            tabu_length = int(rng.integers(0.9 * n, 1.1 * n))
-            tabu_change = 0
-        else:
-            tabu_change += 1
+            # Mise à jour de la solution et du nombre de conflits
+            #cost = delta_array[m]
+            cost = delta_matrix[i,j]
+            solution[i], solution[j] = solution[j], solution[i]
 
-        if cost < best_cost:
-            best_cost = cost
-            best_sol = solution.copy()
+            # Mise à jour de la tabu queue
+            tabu_dict[(i,solution[i])] = Tabu
+            tabu_dict[(j, solution[j])] = Tabu
+            if tabu_change == round(2.2 * n):
+                tabu_length = int(rng.integers(0.9 * n, 1.1 * n))
+                tabu_change = 0
+            else:
+                tabu_change += 1
 
+            if cost >= best_cost:
+                stagnation += 1
+            else:
+                best_cost = cost
+                best_sol = solution.copy()
+                stagnation = 0
 
+        if patience != -1 and stagnation >= patience:
+            #Perturbation et restart
+            solution = perturbation_greedy(solution, flows, dists, 0.1)
+            cost = evaluation(solution, flows, dists)
+            if cost < best_cost:
+                best_cost = cost
+                best_sol = solution.copy()
+        elif cost < 0:
+            raise (Exception("Evaluation du coût négative"))
+        else:  # Arrivé ici on est forcément sortie de la boucle par manque de temps donc fin
+            break
+
+    print("Nb de boucles ILS :", ILS)
     print("Nb total de boucles Tabu :", Tabu)
     return best_sol.tolist()
 
