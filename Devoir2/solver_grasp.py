@@ -40,7 +40,6 @@ def solve(mother):
     GRASP = 0
     Tabu = 0
 
-    # Recherche par paliers
     while time.time() < max_duration + start_time:  # On s'arrête de tenter de nouvelles recherches à la fin du temps
         GRASP += 1
 
@@ -192,3 +191,72 @@ def search(solution, n, flows, dists, patience, max_time, max_duration, start_ti
 
     return best_sol, Tabu
 
+
+def init(mother, number, timer):
+    start_time = time.time()
+    print("Initialiseur GRASP")
+
+    max_duration = timer  # Temps alloué
+
+    # On représente le graphe par ses matrices de flux et de distance
+    flows = nx.to_numpy_array(mother.graph, dtype=np.int32, weight="flow")
+    dists = nx.to_numpy_array(mother.graph, dtype=np.int32, weight="dist")
+
+    # Une solution est un tableau de taille n qui représente le slot attribué à chaque composant
+    n = mother.n_components
+
+    patience = n * 10
+    max_time = 10  # Temps maximum par recherche tabou
+    alphas = [0, 0.1, 0.2, 0.3, 0.4]
+
+    costs = []
+    solution_list = []
+
+    m = len(alphas)
+    means = np.zeros(m)
+    counts = np.zeros(m, dtype=np.uint32)
+    for i, alpha in enumerate(alphas):
+        solution_init = construction(n, flows, dists, alpha)
+        solution, _ = search(solution_init, n, flows, dists, patience, 10, max_duration, start_time)
+        cost = evaluation(solution, flows, dists)
+        costs.append(cost)
+        solution_list.append(solution.copy())
+        means[i] = cost
+        counts[i] += 1
+
+    probs = np.full(m, 1 / m)
+
+    GRASP = 0
+    Tabu = 0
+
+    while time.time() < max_duration + start_time:  # On s'arrête de tenter de nouvelles recherches à la fin du temps
+        GRASP += 1
+
+        # Sélection de alpha
+        i = rng.choice(m, p=probs)
+        alpha = alphas[i]
+
+        # Etape de construction
+        solution_init = construction(n, flows, dists, alpha)
+
+        # Etape de recherche
+        solution, n_iter = search(solution_init, n, flows, dists, patience, max_time, max_duration, start_time)
+        Tabu += n_iter
+
+        # Mise à jour des alphas
+        cost = evaluation(solution, flows, dists)
+        means[i] = (means[i] * counts[i] + cost) / (counts[i] + 1)
+        counts[i] += 1
+        q = cost / means
+        probs = q / q.sum() # Amélioration avec roulette équilibrée ?
+
+        costs.append(cost)
+        solution_list.append(solution.copy())
+
+    print("Nb de boucles GRASP :", GRASP)
+    print("Nb total de boucles Tabu :", Tabu)
+
+    costs = np.array(costs)
+    solution_list = np.array(solution_list)
+    print("Number of solutions generated : ", str(len(solution_list)))
+    return solution_list[np.argsort(costs)][:number]

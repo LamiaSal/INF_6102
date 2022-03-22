@@ -3,6 +3,7 @@ import time as t
 import numpy as np
 import networkx as nx
 import solver_iterated_tabu
+import solver_grasp as sg
 
 rng = np.random.default_rng()
 
@@ -42,23 +43,23 @@ def genetic_search(mother, max_time):
     PARENTS_RATE = 0.2 # 0.2 if we use glouton initialisation
 
     # On représente le graphe par ses matrices de flux et de distance
-    dtype = np.dtype([("flow", np.uint8), ("dist", np.uint8)])
-    graph_dict = nx.to_numpy_array(mother.graph, dtype=dtype, weight=None)
-    flows, dists = graph_dict["flow"], graph_dict["dist"]
+    flows = nx.to_numpy_array(mother.graph, dtype=np.int32, weight="flow")
+    dists = nx.to_numpy_array(mother.graph, dtype=np.int32, weight="dist")
     
 
     #p_k = generate_population(N_COMPONENTS,N_TAILLE_POPULATION) # TODO: A compléter A tester GLOUTON !!!!
-    p_k = generate_population_mixte(N_COMPONENTS, flows, dists, N_TAILLE_POPULATION, mother)
+    #p_k = generate_population_mixte(N_COMPONENTS, flows, dists, N_TAILLE_POPULATION, mother)
     #p_k =generate_population_init2(N_COMPONENTS, flows, dists, N_TAILLE_POPULATION)
     #p_k= generate_population_greedy(N_COMPONENTS, flows, dists, N_TAILLE_POPULATION) # TODO: A compléter A tester GLOUTON !!!!
     #s_star= generate_solution(N_COMPONENTS) # TODO: A tester GLOUTON !!!!
+    p_k = generate_population_grasp(N_COMPONENTS, flows, dists, N_TAILLE_POPULATION, mother, 60)
 
 
     
     p_k_eval=[]
     for s_k in p_k:
-        cost = f_eval(mother, s_k)
-        #cost = evaluation(s_k, flows, dists)
+        #cost = f_eval(mother, s_k)
+        cost = evaluation(np.array(s_k), flows, dists)
         p_k_eval.append(cost)
     
     #print(p_k_eval)
@@ -80,7 +81,7 @@ def genetic_search(mother, max_time):
     #print(p_k)
     while (i<NB_GENERATION and t.time()-t0 < max_time and not restart):
         #print("p_k 11",p_k)
-        print("genereation:",i,"best cost",cost_star)
+        #print("genereation:",i,"best cost",cost_star)
         # Selection (ranking ou tournoi)
         p_k_star= tournament(p_k, p_k_eval,mother, n_components=N_COMPONENTS,population_size = N_TAILLE_POPULATION, tournament_size=TOURNAMENT_SIZE)
         #p_k_star=roulette(p_k, p_k_eval,mother)
@@ -108,13 +109,14 @@ def genetic_search(mother, max_time):
         # Updating
         m_k_eval=[]
         for s_k in m_k:
-            cost = f_eval(mother, s_k)
+            #cost = f_eval(mother, s_k)
+            cost = evaluation(np.array(s_k), flows, dists)
             m_k_eval.append(cost)
         #m_k_eval_argsort = np.argsort(m_k_eval)
 
 
         # generate new population
-        p_k, p_k_eval = generate_new_population(m_k, m_k_eval, p_k, p_k_eval, N_COMPONENTS,N_TAILLE_POPULATION,mother,parents_rate=PARENTS_RATE) # TODO: point d'amélioration
+        p_k, p_k_eval = generate_new_population(m_k, m_k_eval, p_k, p_k_eval, N_COMPONENTS,N_TAILLE_POPULATION,flows,dists,parents_rate=PARENTS_RATE) # TODO: point d'amélioration
         
         index_min=np.argmin(np.array(p_k_eval))
         best_cost = p_k_eval[index_min]
@@ -157,9 +159,9 @@ def genetic_search(mother, max_time):
             mutation_rate= (i/NB_GENERATION)
             cross_rate = 1 - (i/NB_GENERATION)
         
-        print(mutation_rate)
+        '''print(mutation_rate)
         print(cross_rate)
-        print(lambda_p)
+        print(lambda_p)'''
         i+=1
     
     return s_star, cost_star
@@ -364,6 +366,17 @@ def generate_population_mixte(n_components, flows, dists, n_taille_population,mo
     r.shuffle(population)
     return population
 
+def generate_population_grasp(n_components, flows, dists, n_taille_population,mother,time_init):
+    population = np.zeros((n_taille_population, n_components), dtype=np.int32)
+    n = n_taille_population//4
+    pop1 = sg.init(mother, n, time_init)
+    n = len(pop1)
+    population[:n] = pop1
+    for i in range(n, n_taille_population):
+        population[i] = rng.permutation(n_components)
+    r.shuffle(population)
+    return population
+
 
 #####################################################################################################################################
 ##################################################### population selection ##########################################################
@@ -500,13 +513,13 @@ def f_eval(mother, solution):
     return mother.get_total_cost(solution)
 
 def evaluation(solution, flows, dists):
-    return np.sum(flows[solution][:,solution] * dists)
+    return np.sum(flows * dists[solution, :][:, solution])
 
 
 #####################################################################################################################################
 ########################################### New population generation functions #####################################################
 #####################################################################################################################################
-def generate_new_population(m_k, m_k_eval, p_k, p_k_eval, n_components,n_taille_population, mother,parents_rate=0.5):
+def generate_new_population(m_k, m_k_eval, p_k, p_k_eval, n_components,n_taille_population, flows, dists,parents_rate=0.5):
     # gardez 50% parents et 50% enfants
     #print(m_k)
     #print(p_k)
@@ -514,11 +527,11 @@ def generate_new_population(m_k, m_k_eval, p_k, p_k_eval, n_components,n_taille_
     p_k_best_eval_index = (np.argsort(p_k_eval))[:nb_parents_kept]
     p_k_best = np.array(p_k)[p_k_best_eval_index]
     p_k_best_eval = np.array(p_k_eval)[p_k_best_eval_index]
-    print("np.min(p_k)",np.min(p_k_best_eval))
+    #print("np.min(p_k)",np.min(p_k_best_eval))
     m_k_best_eval_index = (np.argsort(m_k_eval))[:len(p_k)-nb_parents_kept]
     m_k_best = np.array(m_k)[m_k_best_eval_index]
     m_k_best_eval = np.array(m_k_eval)[m_k_best_eval_index]
-    print("np.min(m_k)",np.min(m_k_best_eval))
+    #print("np.min(m_k)",np.min(m_k_best_eval))
     
     new_p_k = list(p_k_best) + list(m_k_best)
     new_p_k_eval = list(p_k_best_eval) + list(m_k_best_eval)
@@ -539,7 +552,8 @@ def generate_new_population(m_k, m_k_eval, p_k, p_k_eval, n_components,n_taille_
 
     for i in range(n_taille_population-len(new_p_k)):
         new_p_k.append(generate_individual(n_components))
-        new_p_k_eval.append(f_eval(mother, new_p_k[-1]))
+        #new_p_k_eval.append(f_eval(mother, new_p_k[-1]))
+        new_p_k_eval.append(evaluation(np.array(new_p_k[-1]), flows, dists))
     
     
     return new_p_k, new_p_k_eval
