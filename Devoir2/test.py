@@ -1,9 +1,10 @@
 import argparse
 import time
 from mother_card import MotherCard
-import solver_grasp as st
+import solver_iterated_tabu as st
 import numpy as np
 import networkx as nx
+import solver_init_algos as init
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -32,7 +33,7 @@ if __name__ == '__main__':
 
     print("[INFO] Test informations:")
     #Tests here
-    test_type="search"
+    test_type="init"
 
     if test_type == "calcul":
         values = np.random.randint(256926, 259758, size=12)
@@ -55,12 +56,12 @@ if __name__ == '__main__':
         print("Evaluation custom : " + str(sum))
 
     if test_type=="init": #tests d'initialisation
-        n_tests = 1000
+        n_tests = 10000
         sum=0
         best_cost=10000000000
         for i in range(n_tests):
             solution = st.random_init(n)
-            cost = st.evaluation(solution, flows, dists)
+            cost = init.evaluation(solution, flows, dists)
             sum+=cost
             if cost<best_cost:
                 best_cost = cost
@@ -69,7 +70,7 @@ if __name__ == '__main__':
         sum = 0
         best_cost=10000000000
         for i in range(n_tests):
-            solution = st.greedy_init1(n, flows, dists)
+            solution = init.greedy_init1(n, flows, dists)
             cost = st.evaluation(solution, flows, dists)
             sum += cost
             if cost<best_cost:
@@ -79,7 +80,7 @@ if __name__ == '__main__':
         sum = 0
         best_cost=10000000000
         for i in range(n_tests):
-            solution = st.greedy_init2(n, flows, dists)
+            solution = init.greedy_init2(n, flows, dists)
             cost = st.evaluation(solution, flows, dists)
             sum += cost
             if cost<best_cost:
@@ -89,7 +90,7 @@ if __name__ == '__main__':
         sum = 0
         best_cost=10000000000
         for i in range(n_tests):
-            solution = st.greedy_init3(n, flows, dists)
+            solution = init.greedy_init3(n, flows, dists)
             cost = st.evaluation(solution, flows, dists)
             sum += cost
             if cost<best_cost:
@@ -99,13 +100,35 @@ if __name__ == '__main__':
         sum = 0
         best_cost = 10000000000
         for i in range(n_tests):
-            solution = st.greedy_init4(n, flows, dists)
+            solution = init.greedy_init4(n, flows, dists)
             cost = st.evaluation(solution, flows, dists)
             sum += cost
             if cost < best_cost:
                 best_cost = cost
         print("Mean greedy4 : ", str(sum / n_tests))
         print("Best greedy4 : ", str(best_cost))
+        sum = 0
+        best_cost = 10000000000
+        for i in range(10):
+            index = np.random.permutation(n)
+            solution = init.idof(n, flows, dists, index)
+            cost = st.evaluation(solution, flows, dists)
+            sum += cost
+            if cost < best_cost:
+                best_cost = cost
+        print("Mean idof : ", str(sum / n_tests))
+        print("Best idof : ", str(best_cost))
+        sum = 0
+        best_cost = 10000000000
+        for i in range(100):
+            index = np.random.permutation(n)
+            solution = init.greedy_statistical_init(n, flows, dists, max(n**2, 1000))
+            cost = st.evaluation(solution, flows, dists)
+            sum += cost
+            if cost < best_cost:
+                best_cost = cost
+        print("Mean statistical : ", str(sum / n_tests))
+        print("Best statistical : ", str(best_cost))
         print("Init finished")
 
     if test_type=="search": #Test de recherche
