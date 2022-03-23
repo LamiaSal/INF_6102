@@ -8,20 +8,29 @@ import solver_grasp as sg
 rng = np.random.default_rng()
 
 def solve(mother):
-    """s
-    Your solution of the problem
+    """
+    Genetic Search with restart
     :param mother: object describing the input
     :return: a list of integers of size n where the i-th element of the list is the component located in site i 
     """
+
+    # time maxed to 20 minutes
     MAX_TIME = 1200
+
+    # initialisation of the population, either "random" or "grasp"
+    INIT_POP = "grasp"
     
     t0 = t.time()
     n_restarts = 0
 
+    # initialisation
     s_star = generate_individual(mother.n_components)
     cost_star = f_eval(mother, s_star)
+
     while n_restarts < 1000 and t.time()-t0 < MAX_TIME:
-        solution,cost_sol = genetic_search(mother,max_time=MAX_TIME)  
+        # genetic search
+        solution,cost_sol = genetic_search(mother,init_pop=INIT_POP,max_time=MAX_TIME-(t.time()-t0)) 
+        print(MAX_TIME-(t.time()-t0)) 
 
         # Update if amelioration
         if cost_sol < cost_star:
@@ -32,24 +41,34 @@ def solve(mother):
     
     return s_star
 
-def genetic_search(mother, max_time):
+def genetic_search(mother, max_time,init_pop):
+    """
+    Genetic Search
+    :param mother: object describing the input
+    :max_time: maximum time for computation
+    :init_pop: population initiale
+    :return: a list of integers of size n where the i-th element of the list is the component located in site i 
+    """
     # Initialisation
     N_COMPONENTS = mother.n_components
     N_TAILLE_POPULATION = N_COMPONENTS*20
     NB_GENERATION= 1000
     TOURNAMENT_SIZE = int(N_TAILLE_POPULATION*0.6)
-    MUTATION_RATE = 1 # 0.5 with glouton initialisation
-    CROSS_RATE = 0 #0.95
-    PARENTS_RATE = 0.1 # 0.2 if we use glouton initialisation
+    MUTATION_RATE = 1 
+    CROSS_RATE = 0 
+    PARENTS_RATE = 0.1 
 
     # On représente le graphe par ses matrices de flux et de distance
     flows = nx.to_numpy_array(mother.graph, dtype=np.int32, weight="flow")
     dists = nx.to_numpy_array(mother.graph, dtype=np.int32, weight="dist")
 
-    # initialisation de la population
-    #p_k = generate_population(N_COMPONENTS,N_TAILLE_POPULATION) # TODO: A compléter A tester GLOUTON !!!!
-    #p_k = generate_population_mixte(N_COMPONENTS, flows, dists, N_TAILLE_POPULATION, mother)
-    p_k = generate_population_grasp(N_COMPONENTS, flows, dists, N_TAILLE_POPULATION, mother, 60)
+    if init_pop == "random":
+        # initialisation with random variable
+        p_k = generate_population(N_COMPONENTS,N_TAILLE_POPULATION)
+    elif init_pop == "grasp":
+        # initialisation with grasp
+        p_k = generate_population_grasp(N_COMPONENTS, N_TAILLE_POPULATION, mother, 60)
+    else: print("error :  wrong initialiations should be random or grasp")
 
     p_k_eval=[]
     for s_k in p_k:
@@ -68,23 +87,22 @@ def genetic_search(mother, max_time):
     cross_rate = CROSS_RATE
     t0 = t.time()
     max_iter_without_improv=0
+    # if the mutation is not with poisson law we define the  number of elements to mutate in a solution
     sub_sample_size=0.6
     lambda_p = 3
     restart=False
-
-    #print(p_k)
     while (i<NB_GENERATION and t.time()-t0 < max_time and not restart):
         print("generation : ",i, " best score", cost_star)
         # Selection ranking
-        p_k_star= tournament(p_k, p_k_eval,mother, n_components=N_COMPONENTS,population_size = N_TAILLE_POPULATION, tournament_size=TOURNAMENT_SIZE)
+        p_k_star= tournament(p_k, p_k_eval,population_size = N_TAILLE_POPULATION, tournament_size=TOURNAMENT_SIZE)
 
         # Hybridation
-        c_k= crossing(p_k_star,n_components = N_COMPONENTS, cross_rate =cross_rate, probablity=0.5) # TODO : numpy, 2-point crossover (THEO)
+        c_k= crossing(p_k_star,n_components = N_COMPONENTS, cross_rate =cross_rate) # TODO : numpy, 2-point crossover (THEO)
 
         #Mutation
         m_k= permut_mutation(c_k,N_COMPONENTS, mut_rate=mutation_rate,lambda_p=lambda_p,sub_sample_size=sub_sample_size,poisson=True) # TODO : Poisson/swap/permutation (LAMIA)
 
-        # Updating
+        # compute the children scores
         m_k_eval=[]
         for s_k in m_k:
             #cost = f_eval(mother, s_k)
@@ -95,29 +113,33 @@ def genetic_search(mother, max_time):
         # generate new population
         p_k, p_k_eval = generate_new_population(m_k, m_k_eval, p_k, p_k_eval, N_COMPONENTS,N_TAILLE_POPULATION,flows,dists,parents_rate=PARENTS_RATE) # TODO: point d'amélioration
         
+        # Updating the best result
         index_min=np.argmin(np.array(p_k_eval))
         best_cost = p_k_eval[index_min]
         best_s_star = p_k[index_min]
         
+        
+        # control of parameters if the score doesn't improve
+        # (controls intensification and variety)
         if cost_star > best_cost :
             cost_star= best_cost
             s_star = best_s_star
-            lambda_p= 3 #int(N_COMPONENTS*0.1)
+            lambda_p = 3
+            # number of iteration where the score doesn't improve
             max_iter_without_improv=0
         else:
             max_iter_without_improv+=1
         if max_iter_without_improv >=30:
-            # parameters for mutation (controls intensification and variety)
+            
             lambda_p = int(N_COMPONENTS*r.uniform(0.01, 0.2))
         if max_iter_without_improv >=60:
             lambda_p = int(N_COMPONENTS*r.uniform(0.01, 0.3))
         if max_iter_without_improv>=100:
             restart = True
         
+        # update mutation and crossing rate
         mutation_rate= 1-(i/NB_GENERATION)
         cross_rate = (i/NB_GENERATION)
-        #mutation_rate= (i/NB_GENERATION)
-        #cross_rate = 1 - (i/NB_GENERATION)
         i+=1
     
     return s_star, cost_star
@@ -127,6 +149,11 @@ def genetic_search(mother, max_time):
 ##################################################### initialisation functions ######################################################
 #####################################################################################################################################
 def generate_individual(n_components):
+    '''
+    generate a random solution
+    :param n_components: nombre de machine/slots
+    :return res: solution
+    '''
     try:
         individual = r.sample(range(0, n_components), n_components)
     except ValueError:
@@ -164,18 +191,36 @@ def greedy_init1(n, flows, dists):
 
 
 def generate_population(n_components, n_taille_population):
+    """
+    generate a population of random solution
+    """
     population = [generate_individual(n_components) for _ in range(n_taille_population)]
     return population
 
 
-def generate_population_mixte(n_components, flows, dists, n_taille_population,mother):
+def generate_population_mixte(n_components, flows, dists, n_taille_population):
+    """
+    genere un population partiellement aléatoire et avec une initialisation greedy.
+    :param n_components: nombre de machine/slots
+    :param flows: matrice des fluxs
+    :param dists: matrice des distances
+    :n_taille_population: taille de la population
+    :return res: population
+    """
     population_1 = [greedy_init1(n_components, flows, dists) for _ in range(n_taille_population//2)]
     population_2 = [generate_individual(n_components) for _ in range(n_taille_population//2)]
     population = population_1 + population_2 
     r.shuffle(population)
     return population
 
-def generate_population_grasp(n_components, flows, dists, n_taille_population,mother,time_init):
+def generate_population_grasp(n_components, n_taille_population,mother,time_init):
+    """
+    genere un population partiellement aléatoire et avec une initialisation grasp.
+    :param n_components: nombre de machine/slots
+    :n_taille_population: taille de la population
+    :time_init: temps d'initialisation des solution GRASP
+    :return res: population
+    """
     population = np.zeros((n_taille_population, n_components), dtype=np.int32)
     n = n_taille_population//4
     pop1 = sg.init(mother, n, time_init)
@@ -191,8 +236,15 @@ def generate_population_grasp(n_components, flows, dists, n_taille_population,mo
 ##################################################### population selection ##########################################################
 #####################################################################################################################################
 
-def tournament(population, population_eval, mother,n_components,population_size, tournament_size):
-
+def tournament(population, population_eval,population_size, tournament_size):
+    """
+    tournament to select best candidates in population
+    :population: population (list of solutions)
+    :population_eval: list of the score for each solution in the population
+    :population_size: size of population
+    :tournament_size: size of the tournament
+    :return res: new population
+    """
     # verification of some connditions
     if tournament_size%2!=0:
         tournament_size+=1
@@ -205,7 +257,7 @@ def tournament(population, population_eval, mother,n_components,population_size,
     population_eval_arr=np.array(population_eval)
 
     for i in range(population_size):
-        select_index = r.sample(range(0, len(population)), tournament_size)
+        select_index = r.sample(range(0, population_size), tournament_size)
         index_min_sol = np.argmin(population_eval_arr[select_index])
         selected.append(list((np.array(population)[select_index])[index_min_sol]))
     return selected
@@ -213,10 +265,16 @@ def tournament(population, population_eval, mother,n_components,population_size,
 #####################################################################################################################################
 ##################################################### Hybridation functions #########################################################
 #####################################################################################################################################
-def crossing(population,n_components, cross_rate=0.95, probablity=0.5):
-    
+def crossing(population,n_components, cross_rate=0.95):
+    """
+    crossing, creating new children by crossing the 2 parents at a time chosen with a probability equals to cross_rate
+    :population: population (list of solutions)
+    :n_compenents: number of compenents
+    :cross_rate: rate of crossed parents
+    :return res: new population
+    """
+
     assert len(population)%2 == 0, "Population de taille paire requise"
-    #r.shuffle(population)
 
     m_one_arr = np.full((n_components),-1, dtype=int)
     children = []
@@ -262,19 +320,27 @@ def crossing(population,n_components, cross_rate=0.95, probablity=0.5):
 
 # augmenter taux de pumtation = diversification, si y a des clones il manque de diversification
 def permut_mutation(c_k,n_components, mut_rate=0.3,lambda_p=1,sub_sample_size=0.6,poisson=True):
+    """
+    tournament to select best candidates in population
+    :population: population (list of solutions)
+    :population_eval: list of the score for each solution in the population
+    :population_size: size of population
+    :tournament_size: size of the tournament
+    :return res: new population
+    """
+
     if poisson and lambda_p==1 :
+        # optimal value
         mut_rate=1/n_components
-    
 
     m_k=[]
     for sol in c_k:
         if poisson:
-            
+            # if the poisson law is used to select the number of elements to permute
             nb_permut = min(n_components,max(2,np.random.poisson(lambda_p)))
         else:
             nb_permut =  min(n_components,max(2,int(n_components*sub_sample_size)))
-            #print(nb_permut)
-        #print(nb_permut)
+        
         Pr_mutation = r.random() #probability to mutate
 
         if Pr_mutation < mut_rate:
@@ -302,22 +368,35 @@ def evaluation(solution, flows, dists):
 ########################################### New population generation functions #####################################################
 #####################################################################################################################################
 def generate_new_population(m_k, m_k_eval, p_k, p_k_eval, n_components,n_taille_population, flows, dists,parents_rate=0.5):
-    # gardez 50% parents et 50% enfants
+    """
+    tournament to select best candidates in population
+    :m_k: population of children solution
+    :m_k_eval: score of the children population
+    :p_k: population of parent solution
+    :p_k_eval: score of the parent population
+    :n_components: number of compenents
+    :n_taille_population: size of population
+    :param flows: flow matrix
+    :param dists: matrix of distances
+    :parents_rate: the rate of best parents that will be kept
+    :return res: new population
+    """
+    # keep parents_rate of the parent population
     nb_parents_kept = int(n_taille_population*(parents_rate))
     p_k_best_eval_index = (np.argsort(p_k_eval))[:nb_parents_kept]
     p_k_best = np.array(p_k)[p_k_best_eval_index]
     p_k_best_eval = np.array(p_k_eval)[p_k_best_eval_index]
-    #print("np.min(p_k)",np.min(p_k_best_eval))
+
+    # keep (1-parents_rate) of the children population
     m_k_best_eval_index = (np.argsort(m_k_eval))[:len(p_k)-nb_parents_kept]
     m_k_best = np.array(m_k)[m_k_best_eval_index]
     m_k_best_eval = np.array(m_k_eval)[m_k_best_eval_index]
-    #print("np.min(m_k)",np.min(m_k_best_eval))
     
     new_p_k = list(p_k_best) + list(m_k_best)
     new_p_k_eval = list(p_k_best_eval) + list(m_k_best_eval)
 
+    # suppress cloones and shuffle in a zip file
     c = list(zip(new_p_k, new_p_k_eval))
-
     new_c = []
     for elem in c:
         if list(elem) not in c:
@@ -325,6 +404,7 @@ def generate_new_population(m_k, m_k_eval, p_k, p_k_eval, n_components,n_taille_
     r.shuffle(new_c)
     new_p_k, new_p_k_eval = zip(*new_c)
 
+    # add random solutions to complet de population
     for i in range(n_taille_population-len(new_p_k)):
         new_p_k.append(generate_individual(n_components))
         new_p_k_eval.append(evaluation(np.array(new_p_k[-1]), flows, dists))
