@@ -1,0 +1,31 @@
+Init : greedy init 4
+
+A :
+1min
+Init -> 68
+242001 boucles tabu
+final 58
+
+B :
+20mins
+Init -> 3822
+304248 boucles tabu
+final 3722
+
+C :
+20mins
+Init -> 13601
+116099 boucles tabu
+final 13409
+
+D :
+20mins
+Init -> 172864
+11505 boucles tabu
+final 171292
+
+E :
+20mins
+Init -> 257380
+7838 boucles tabu
+final 255270

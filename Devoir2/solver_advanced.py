@@ -1,4 +1,4 @@
-import solver_genetic as sg
+import solver_grasp as sg
 
 
 def solve(mother):
