@@ -1,9 +1,9 @@
-Init : greedy init 4
+Init : basée sur greedy init 4 avec alpha réactif
 
 A :
 1min
-Init -> 68
-242001 boucles tabu
+4548 boucles GRASP
+256589 boucles tabu
 final 58
 
 B :
@@ -14,18 +14,19 @@ final 3683
 
 C :
 20mins
-Init -> 13601
-116099 boucles tabu
-final 13409
+412 boucles GRASP
+134873 boucles tabu
+final 13307
+[0.16667046 0.16668596 0.16668121 0.16668703 0.16661511 0.16666023]
 
 D :
 20mins
-Init -> 172864
-11505 boucles tabu
-final 171292
+38 boucles GRASP
+12779 boucles tabu
+final 171137
 
 E :
 20mins
-Init -> 257380
-7838 boucles tabu
-final 255270
+38 boucles GRASP
+9074 boucles tabu
+final 255082

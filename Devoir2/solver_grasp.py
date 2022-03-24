@@ -68,6 +68,7 @@ def solve(mother):
 
     print("Nb de boucles GRASP :", GRASP)
     print("Nb total de boucles Tabu :", Tabu)
+    print("Pondérations alphas : ", probs)
     return best_sol.tolist()
 
 
@@ -78,21 +79,21 @@ def evaluation(solution, flows, dists):
 def construction(n, flows, dists, alpha):
     """
     Construction greedy
-    :param n: nombre de machine/slots
+    :param n: nombre de component/slots
     :param flows: matrice des fluxs
     :param dists: matrice des distances
     :param alpha: part de move envisagés
     :return res: solution
     """
     solution = np.zeros(n, dtype=np.uint8)
-    open_machines = list(np.arange(n))
+    open_components = list(np.arange(n))
     open_slots = list(np.arange(n))
-    assigned_machines = []
+    assigned_components = []
     for i in range(n):
-        assigned_slots = solution[assigned_machines]
-        heuristic = np.zeros((len(open_machines), len(open_slots)), dtype=np.int32)
-        for i,machine in enumerate(open_machines) :
-            assigned_costs = np.sum(flows[machine, :][assigned_machines] * dists[open_slots, :][:, assigned_slots], axis=1)
+        assigned_slots = solution[assigned_components]
+        heuristic = np.zeros((len(open_components), len(open_slots)), dtype=np.int32)
+        for i,component in enumerate(open_components) :
+            assigned_costs = np.sum(flows[component, :][assigned_components] * dists[open_slots, :][:, assigned_slots], axis=1)
             heuristic[i] = assigned_costs
 
         min = heuristic.min()
@@ -104,7 +105,7 @@ def construction(n, flows, dists, alpha):
         values = heuristic.flatten()[mask]
         if values.std() == 0:
             pick = rng.choice(index)
-            machine = open_machines[pick // len(open_slots)]
+            component = open_components[pick // len(open_slots)]
             slot = open_slots[pick % len(open_slots)]
         else:
             standard_values = (values - values.mean()) / values.std()
@@ -115,13 +116,13 @@ def construction(n, flows, dists, alpha):
             else :
                 normal_standard_values = np.full(len(standard_values), 1 / len(standard_values))
             pick = rng.choice(index, p=normal_standard_values)  # Roulette standardisée
-            machine = open_machines[pick // len(open_slots)]
+            component = open_components[pick // len(open_slots)]
             slot = open_slots[pick % len(open_slots)]
 
-        solution[machine] = slot
-        open_machines.remove(machine)
+        solution[component] = slot
+        open_components.remove(component)
         open_slots.remove(slot)
-        assigned_machines.append(slot)
+        assigned_components.append(slot)
 
     return solution
 

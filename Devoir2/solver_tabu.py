@@ -120,15 +120,15 @@ def perturbation_greedy(solution, flows, dists, gamma):
     :return:
     """
     n = len(solution)
-    open_machines = rng.choice(n, round(n * gamma), replace=False).tolist()
-    open_slots = solution[open_machines].tolist()
-    assigned_machines = [slot for slot in range(n) if slot not in open_machines]
+    open_components = rng.choice(n, round(n * gamma), replace=False).tolist()
+    open_slots = solution[open_components].tolist()
+    assigned_components = [slot for slot in range(n) if slot not in open_components]
     for i in range(round(n * gamma)):
-        machine = rng.choice(open_machines)
-        assigned_costs = np.sum(flows[machine, :][assigned_machines] * dists[:, solution[assigned_machines]],axis=1)[open_slots]
+        component = rng.choice(open_components)
+        assigned_costs = np.sum(flows[component, :][assigned_components] * dists[:, solution[assigned_components]],axis=1)[open_slots]
         slot = open_slots[np.random.choice(np.argwhere(assigned_costs == assigned_costs.min())[:, 0])]
-        solution[machine] = slot
-        open_machines.remove(machine)
+        solution[component] = slot
+        open_components.remove(component)
         open_slots.remove(slot)
-        assigned_machines.append(slot)
+        assigned_components.append(slot)
     return solution
