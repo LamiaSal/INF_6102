@@ -164,8 +164,8 @@ def search(solution, n, flows, dists, patience, max_time, max_duration, start_ti
         while j < i:  # Les éléments de la moitié supérieure de la matrice sont en fin de liste et ne sont pas considérés
             if delta_matrix[i, j] < best_cost:  # Critère d'aspiration
                 break
-            elif tabu_dict[(i, solution[i])] == -1 or tabu_dict[(j, solution[j])] == -1 or tabu_dict[
-                (i, solution[i])] + tabu_length < Tabu or tabu_dict[(j, solution[j])] + tabu_length < Tabu:
+            elif tabu_dict[(i, solution[j])] == -1 or tabu_dict[(j, solution[i])] == -1 or tabu_dict[
+                (i, solution[j])] + tabu_length < Tabu or tabu_dict[(j, solution[i])] + tabu_length < Tabu:
                 break
             m += 1
             i, j = ind1[m], ind2[m]

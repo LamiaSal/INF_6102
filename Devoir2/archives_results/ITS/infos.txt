@@ -17,16 +17,16 @@ final 3683
 C :
 20mins
 Init -> 13601
-442 boucles ILS
-132837 boucles tabu
-final 13399
+516 boucles ILS
+155614 boucles tabu
+final 13178
 
 D :
 20mins
-Init -> 172926
-20 boucles ILS
-13544 boucles tabu
-final 171266
+Init -> 172755
+15 boucles ILS
+13807 boucles tabu
+final 170769
 
 E :
 20mins
