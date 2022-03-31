@@ -141,6 +141,12 @@ def evaluation(solution, flows, dists):
 
 
 def perturbation_random(solution, gamma):
+    """
+    Perturbation et reconstruction aléatoire d'une partie de la solution
+    :param solution: solution à perturber
+    :param gamma: part de la solution randomisée
+    :return: solution perturbée
+    """
     n = len(solution)
     removing = rng.choice(n, 2*round(n * gamma / 2), replace=False)
     for i in range(len(removing)/2):
@@ -152,11 +158,11 @@ def perturbation_random(solution, gamma):
 def perturbation_greedy(solution, flows, dists, gamma):
     """
     Perturbation et reconstruction greedy avec choix d'ordre aléatoire pour diversification
-    :param solution:
-    :param flows:
-    :param dists:
-    :param gamma:
-    :return:
+    :param solution: solution à perturber
+    :param flows: matrice des fluxs
+    :param dists: matrice des distances
+    :param gamma: part de la solution randomisée
+    :return: solution perturbée
     """
     n = len(solution)
     open_components = rng.choice(n, round(n * gamma), replace=False).tolist()
