@@ -7,4 +7,4 @@ def solve_heuristic(eternity_puzzle):
     :return: a tuple (solution, cost) where solution is a list of the pieces (rotations applied) and
         cost is the cost of the solution
     """
-    return gd.solve_heuristic(eternity_puzzle)
+    return gd.solve_heuristic(eternity_puzzle, 100)
