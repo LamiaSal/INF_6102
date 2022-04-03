@@ -2,6 +2,8 @@
 https://www.researchgate.net/publication/325433420_Automatically_Generating_and_Solving_Eternity_II_Style_Puzzles
 https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.633.8318&rep=rep1&type=pdf
 https://www.researchgate.net/publication/267412224_Solving_Eternity-II_puzzles_with_a_tabu_search_algorithm
+a = np.array([[[1,2],[3,4],[5,6]],[[7,8],[9,10],[11,12]],[[13,14],[15,16],[17,18]]])
+python main.py --agent=heuristic --infile=instances/eternity_trivial_B.txt
 '''
 
 
@@ -15,8 +17,8 @@ def solve_heuristic(eternity_puzzle):
         cost is the cost of the solution
     """
     pieces = transform(eternity_puzzle)
-    n = len(pieces)
-    solution = np.zeroes((n,n,4), dtype=np.uint8) #On représente la solution par une matrice 3D
+    n = eternity_puzzle.board_size
+    solution = np.zeros((n,n,4), dtype=np.uint8) #On représente la solution par une matrice 3D
     corners, edges, interiors = split(pieces)
     open_corners = np.full(len(corners),True)
     open_edges = np.full(len(edges),True)
@@ -32,7 +34,7 @@ def solve_heuristic(eternity_puzzle):
                     piece = np.roll(piece, 2)
                 elif piece[2] == 0 and piece[3] == 0:
                     piece = np.roll(piece, 1)
-                solution[0,0] == piece
+                solution[0,0] = piece
             elif i == 0 and j == n-1: # Coin en haut à droite
                 left_color = solution[0,n-2,1]
                 mask1 = (corners[open_corners, 0] == left_color) & (corners[open_corners, 1] == 0)
@@ -40,7 +42,11 @@ def solve_heuristic(eternity_puzzle):
                 mask3 = (corners[open_corners, 2] == left_color) & (corners[open_corners, 3] == 0)
                 mask4 = (corners[open_corners, 3] == left_color) & (corners[open_corners, 0] == 0)
                 mask = mask1 | mask2 | mask3 | mask4
-                piece_i = np.arange(len(corners))[open_corners][np.random.choice(np.nonzero(mask)[0])]
+                valid = np.nonzero(mask)[0]
+                if len(valid) > 0:
+                    piece_i = np.arange(len(corners))[open_corners][np.random.choice(valid)]
+                else:
+                    piece_i = np.random.choice(np.nonzero(open_corners)[0])
                 open_corners[piece_i] = False
                 piece = corners[piece_i]
                 if piece[1] == 0 and piece[2] == 0:
@@ -49,7 +55,7 @@ def solve_heuristic(eternity_puzzle):
                     piece = np.roll(piece, 2)
                 elif piece[3] == 0 and piece[0] == 0:
                     piece = np.roll(piece, 1)
-                solution[0, n-1] == piece
+                solution[0, n-1] = piece
             elif i == n-1  and j == 0: # Coin en bas à gauche
                 up_color = solution[n - 2, 0, 2]
                 mask1 = (corners[open_corners, 0] == up_color) & (corners[open_corners, 3] == 0)
@@ -57,7 +63,11 @@ def solve_heuristic(eternity_puzzle):
                 mask3 = (corners[open_corners, 2] == up_color) & (corners[open_corners, 1] == 0)
                 mask4 = (corners[open_corners, 3] == up_color) & (corners[open_corners, 2] == 0)
                 mask = mask1 | mask2 | mask3 | mask4
-                piece_i = np.arange(len(corners))[open_corners][np.random.choice(np.nonzero(mask)[0])]
+                valid = np.nonzero(mask)[0]
+                if len(valid) > 0:
+                    piece_i = np.arange(len(corners))[open_corners][np.random.choice(valid)]
+                else:
+                    piece_i = np.random.choice(np.nonzero(open_corners)[0])
                 open_corners[piece_i] = False
                 piece = corners[piece_i]
                 if piece[3] == 0 and piece[0] == 0:
@@ -66,24 +76,159 @@ def solve_heuristic(eternity_puzzle):
                     piece = np.roll(piece, 2)
                 elif piece[1] == 0 and piece[2] == 0:
                     piece = np.roll(piece, 1)
-                solution[0, n - 1] == piece
+                solution[n-1, 0] = piece
             elif i == n-1 and j == n-1: # Coin en bas à droite
                 # On met simplement le coin restant
                 piece_i = np.nonzero(open_corners)[0][0]
                 open_corners[piece_i] = False
-                solution[n-1, n-1] == corners[piece_i]
+                piece = corners[piece_i]
+                if piece[3] == 0 and piece[2] == 0:
+                    piece = np.roll(piece, -1)
+                elif piece[0] == 0 and piece[3] == 0:
+                    piece = np.roll(piece, 2)
+                elif piece[1] == 0 and piece[0] == 0:
+                    piece = np.roll(piece, 1)
+                solution[n-1, n-1] = piece
             elif i == 0: # Bord haut
-                pass
+                left_color = solution[0, j-1, 1]
+                mask1 = (edges[open_edges, 0] == left_color) & (edges[open_edges, 1] == 0)
+                mask2 = (edges[open_edges, 1] == left_color) & (edges[open_edges, 2] == 0)
+                mask3 = (edges[open_edges, 2] == left_color) & (edges[open_edges, 3] == 0)
+                mask4 = (edges[open_edges, 3] == left_color) & (edges[open_edges, 0] == 0)
+                mask = mask1 | mask2 | mask3 | mask4
+                valid = np.nonzero(mask)[0]
+                if len(valid) > 0:
+                    piece_i = np.arange(len(edges))[open_edges][np.random.choice(valid)]
+                else:
+                    piece_i = np.random.choice(np.nonzero(open_edges)[0])
+                open_edges[piece_i] = False
+                piece = edges[piece_i]
+                if piece[1] == 0:
+                    piece = np.roll(piece, -1)
+                elif piece[2] == 0:
+                    piece = np.roll(piece, 2)
+                elif piece[3] == 0:
+                    piece = np.roll(piece, 1)
+                solution[0, j] = piece
             elif i == n-1: # Bord bas
-                pass
+                left_color = solution[n-1, j - 1, 1]
+                up_color = solution[n-2, j, 2]
+                heuristic = np.zeros(sum(open_edges), dtype=np.uint8)
+                mask1 = (edges[open_edges, 0] == left_color) & (edges[open_edges, 3] == 0)
+                mask2 = (edges[open_edges, 1] == left_color) & (edges[open_edges, 0] == 0)
+                mask3 = (edges[open_edges, 2] == left_color) & (edges[open_edges, 1] == 0)
+                mask4 = (edges[open_edges, 3] == left_color) & (edges[open_edges, 2] == 0)
+                mask = mask1 | mask2 | mask3 | mask4
+                heuristic += mask
+                mask1 = (edges[open_edges, 3] == 0) & (edges[open_edges, 1] == up_color)
+                mask2 = (edges[open_edges, 0] == 0) & (edges[open_edges, 2] == up_color)
+                mask3 = (edges[open_edges, 1] == 0) & (edges[open_edges, 3] == up_color)
+                mask4 = (edges[open_edges, 2] == 0) & (edges[open_edges, 0] == up_color)
+                mask = mask1 | mask2 | mask3 | mask4
+                heuristic += mask
+                hmax = heuristic.max()
+                piece_i = np.arange(len(edges))[open_edges][np.random.choice(np.nonzero(heuristic == hmax)[0])]
+                open_edges[piece_i] = False
+                piece = edges[piece_i]
+                if piece[0] == 0:
+                    piece = np.roll(piece, 2)
+                elif piece[1] == 0:
+                    piece = np.roll(piece, 1)
+                elif piece[3] == 0:
+                    piece = np.roll(piece, -1)
+                solution[n-1, j] = piece
             elif j == 0: # Bord gauche
-                pass
+                up_color = solution[i-1, 0, 2]
+                mask1 = (edges[open_edges, 0] == up_color) & (edges[open_edges, 3] == 0)
+                mask2 = (edges[open_edges, 1] == up_color) & (edges[open_edges, 0] == 0)
+                mask3 = (edges[open_edges, 2] == up_color) & (edges[open_edges, 1] == 0)
+                mask4 = (edges[open_edges, 3] == up_color) & (edges[open_edges, 2] == 0)
+                mask = mask1 | mask2 | mask3 | mask4
+                valid = np.nonzero(mask)[0]
+                if len(valid) > 0:
+                    piece_i = np.arange(len(edges))[open_edges][np.random.choice(valid)]
+                else:
+                    piece_i = np.random.choice(np.nonzero(open_edges)[0])
+                open_edges[piece_i] = False
+                piece = edges[piece_i]
+                if piece[0] == 0:
+                    piece = np.roll(piece, -1)
+                elif piece[1] == 0:
+                    piece = np.roll(piece, 2)
+                elif piece[2] == 0:
+                    piece = np.roll(piece, 1)
+                solution[i, 0] = piece
             elif j == n-1: # Bord droit
-                pass
+                left_color = solution[i, n - 2, 1]
+                up_color = solution[i-1, n - 1, 2]
+                heuristic = np.zeros(sum(open_edges), dtype=np.uint8)
+                mask1 = (edges[open_edges, 0] == left_color) & (edges[open_edges, 2] == 0)
+                mask2 = (edges[open_edges, 1] == left_color) & (edges[open_edges, 3] == 0)
+                mask3 = (edges[open_edges, 2] == left_color) & (edges[open_edges, 0] == 0)
+                mask4 = (edges[open_edges, 3] == left_color) & (edges[open_edges, 1] == 0)
+                mask = mask1 | mask2 | mask3 | mask4
+                heuristic += mask
+                mask1 = (edges[open_edges, 3] == 0) & (edges[open_edges, 2] == up_color)
+                mask2 = (edges[open_edges, 0] == 0) & (edges[open_edges, 3] == up_color)
+                mask3 = (edges[open_edges, 1] == 0) & (edges[open_edges, 0] == up_color)
+                mask4 = (edges[open_edges, 2] == 0) & (edges[open_edges, 1] == up_color)
+                mask = mask1 | mask2 | mask3 | mask4
+                heuristic += mask
+                hmax = heuristic.max()
+                piece_i = np.arange(len(edges))[open_edges][np.random.choice(np.nonzero(heuristic == hmax)[0])]
+                open_edges[piece_i] = False
+                piece = edges[piece_i]
+                if piece[2] == 0:
+                    piece = np.roll(piece, -1)
+                elif piece[3] == 0:
+                    piece = np.roll(piece, 2)
+                elif piece[0] == 0:
+                    piece = np.roll(piece, 1)
+                solution[i, n-1] = piece
             else: # Intérieur
-                pass
-
-    return
+                left_color = solution[i, j-1, 1]
+                up_color = solution[i - 1, j, 2]
+                heuristic = np.zeros(sum(open_interiors), dtype=np.uint8)
+                mask1 = (interiors[open_interiors, 0] == left_color) | (interiors[open_interiors, 0] == up_color)
+                mask2 = (interiors[open_interiors, 1] == left_color) | (interiors[open_interiors, 1] == up_color)
+                mask3 = (interiors[open_interiors, 2] == left_color) | (interiors[open_interiors, 2] == up_color)
+                mask4 = (interiors[open_interiors, 3] == left_color) | (interiors[open_interiors, 3] == up_color)
+                mask = mask1 | mask2 | mask3 | mask4
+                heuristic += mask
+                mask1 = (interiors[open_interiors, 3] == left_color) & (interiors[open_interiors, 0] == up_color)
+                mask2 = (interiors[open_interiors, 0] == left_color) & (interiors[open_interiors, 1] == up_color)
+                mask3 = (interiors[open_interiors, 1] == left_color) & (interiors[open_interiors, 2] == up_color)
+                mask4 = (interiors[open_interiors, 2] == left_color) & (interiors[open_interiors, 3] == up_color)
+                mask = mask1 | mask2 | mask3 | mask4
+                heuristic += mask
+                hmax = heuristic.max()
+                piece_i = np.arange(len(interiors))[open_interiors][np.random.choice(np.nonzero(heuristic == hmax)[0])]
+                open_interiors[piece_i] = False
+                piece = interiors[piece_i]
+                if hmax == 2:
+                    if piece[1] == up_color:
+                        piece = np.roll(piece, -1)
+                    elif piece[2] == up_color:
+                        piece = np.roll(piece, 2)
+                    elif piece[3] == up_color:
+                        piece = np.roll(piece, 1)
+                elif hmax == 1:
+                    if piece[1] == up_color:
+                        piece = np.roll(piece, -1)
+                    elif piece[2] == up_color:
+                        piece = np.roll(piece, 2)
+                    elif piece[3] == up_color:
+                        piece = np.roll(piece, 1)
+                    elif piece[0] == left_color:
+                        piece = np.roll(piece, -1)
+                    elif piece[1] == left_color:
+                        piece = np.roll(piece, 2)
+                    elif piece[2] == left_color:
+                        piece = np.roll(piece, 1)
+                solution[i, j] = piece
+    solution_final = retransform(solution)
+    score = eternity_puzzle.get_total_n_conflict(solution_final)
+    return (solution_final, score)
 
 
 def transform(eternity_puzzle):
@@ -93,19 +238,8 @@ def transform(eternity_puzzle):
     :param eternity_puzzle:
     :return:
     """
-    n = eternity_puzzle.board_size
-    pieces = np.zeroes((n**2,4), dtype=np.uint8)
-    pieces_list = eternity_puzzle.piece_list
-    for i,u in enumerate(pieces_list):
-        for j,v in enumerate(u):
-            if j==0:
-                pieces[i,0] = v
-            elif j==1:
-                pieces[i, 2] = v
-            elif j==2:
-                pieces[i, 3] = v
-            else:
-                pieces[i, 1] = v
+    pieces = np.array(eternity_puzzle.piece_list, dtype=np.uint8)
+    pieces = pieces[:,[0,3,1,2]]
     return pieces
 
 
@@ -115,11 +249,13 @@ def retransform(solution):
     :param solution:
     :return:
     """
-    return
+    n = len(solution)
+    list_sol = solution[::-1].reshape((n*n,4))[:,[0,2,3,1]].tolist()
+    return [tuple(x) for x in list_sol]
 
 
 def split(pieces):
-    n = len(pieces)
+    n = int(np.sqrt(len(pieces)))
 
     counts = np.sum(pieces == 0,axis=1)
 
@@ -135,4 +271,5 @@ def split(pieces):
 
 
 def evaluation(solution):
+    #TODO : Implémenter éval sol numpy
     return
