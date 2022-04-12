@@ -13,9 +13,9 @@ def solve(factory):
     """
     
     # time maxed to 20 minutes
-    MAX_TIME = 300
-    k_max=2
-    MAX_ITER_WITHOUT_IMP = 20
+    MAX_TIME =1200
+    k_max=3
+    MAX_ITER_WITHOUT_IMP = 10
 
     solution = init_encoded(factory)
 
@@ -31,7 +31,9 @@ def solve(factory):
     t0 = t.time()
     nb_iter_restart = 0
     while t.time()-t0 < MAX_TIME:
-        solution = VND(factory, solution,k_max)
+        
+        solution = GVNS(factory, solution,k_max,t0,MAX_TIME)
+        print(t0)
         solution_score = f(factory, decode_sol(factory, solution))
         if solution_score < score_star:
             s_star = copy.deepcopy(solution)
@@ -40,8 +42,6 @@ def solve(factory):
             nb_iter_restart = 0
         else:
             nb_iter_restart += 1
-        
-        
         if nb_iter_restart >= MAX_ITER_WITHOUT_IMP:
             solution = init_encoded(factory)
             print("RESTART numéro", nb_iter_restart, "best cost:",score_star)
@@ -89,71 +89,27 @@ def decode_sol(factory, sol_encoded):
 
 
 # TODO: considérer les voisinage du plus petit au plus grand
-def VND(factory,s,k_max):
+def GVNS(factory,s,k_max, t0, max_time):
     k=1
     while k<=k_max:
-        s_prime = BestImprovement(factory,k, s)
-        s, k = NeighborhoodChange(factory, s, s_prime, k)
+        s_prime = shake(factory, s,k)
+        s_prime_prime = VND(factory,s_prime,k_max,t0, max_time) #BestImprovement(factory,k, s_prime)
+        s, k = NeighborhoodChange(factory, s, s_prime_prime, k)
+        #print(k)
+        if t.time()-t0 >= max_time :
+            print("done")
+            return s
     return s
 
-# TODO: les voisinages doivent respecter les contraintes dures
-def BestImprovement(factory, k,solution):
-    if k == 1:
-        # voisinage 1 : permuter les opérations côte à côte entre elles (2-swap)
-        s_prime = swap(factory, solution)
-        #print("swap")
-    elif k == 2:
-        s_prime = interchange(factory, solution)
-        #print("interchange")
-    elif k == 3:
-        #print("insertion")
-        s_prime = insertion(factory, solution)
-    # autre idée exchange mais que les 2 trucs à côté
-    else :
-        raise Exception("number of beinghbor exceeded")
-    return s_prime
-
-def swap(factory, solution):
-    sol_score = f(factory, decode_sol(factory, solution))
-    for i in range(len(solution)-1):
-        new_sol = copy.deepcopy(solution)
-        new_sol[i], new_sol[i+1] = solution[i+1], solution[i]
-        new_sol_score = f(factory, decode_sol(factory, new_sol))
-        if new_sol_score < sol_score :
-            sol_score=new_sol_score
-            solution = copy.deepcopy(new_sol)
-    return solution
-    
-
-def interchange(factory, solution):
-    sol_score = f(factory, decode_sol(factory, solution))
-    for i in range(len(solution)-1):
-        for j in range(len(solution)-1):
-            if i!=j:
-                new_sol = copy.deepcopy(solution)
-                new_sol[i], new_sol[j] = solution[j], solution[i]
-                new_sol_score = f(factory, decode_sol(factory, new_sol))
-                if new_sol_score < sol_score :
-                    sol_score=new_sol_score
-                    solution = copy.deepcopy(new_sol)
-    return solution
-
-def insertion(factory, solution):
-    sol_score = f(factory, decode_sol(factory, solution))
-    for i in range(len(solution)-1):
-        for j in range(len(solution)-1):
-            if i!=j:
-                new_sol = copy.deepcopy(solution)
-                val = new_sol.pop(i)
-                new_sol.insert(j, val)
-                #new_sol[i], new_sol[j] = solution[j], solution[i]
-                new_sol_score = f(factory, decode_sol(factory, new_sol))
-                if new_sol_score < sol_score :
-                    sol_score=new_sol_score
-                    solution = copy.deepcopy(new_sol)
-    return solution
-    
-
+def VND(factory,s,k_max,t0, max_time):
+    k=1
+    while k<=k_max:
+        s_prime = BestImprovement(factory, s, k, t0, max_time)
+        s, k = NeighborhoodChange(factory, s, s_prime, k)
+        if t.time()-t0 >= max_time :
+            print("done")
+            return s
+    return s
 
 def NeighborhoodChange(factory, s, s_prime, k):
     '''
@@ -162,10 +118,107 @@ def NeighborhoodChange(factory, s, s_prime, k):
     if f(factory,  decode_sol(factory, s_prime))<f(factory, decode_sol(factory, s)):
         s=copy.deepcopy(s_prime) # make a move
         k=1 # initial neighborhood
-        print("improved", f(factory,  decode_sol(factory, s_prime)) )
+        #print("improved", f(factory,  decode_sol(factory, s_prime)) )
     else:
         k+=1 # next neighborhood
     return s, k
+
+def shake(factory, solution, k):
+    # Exchange +Insert+ Exchange
+    s_prime = copy.deepcopy(solution)
+    '''
+    l = r.sample(range(1,len(s_prime)-1), 6)
+    s_prime = interchange_single(s_prime, l[0], l[1])
+    s_prime = insertion_single(s_prime, l[2], l[3])
+    s_prime = interchange_single(s_prime, l[4], l[5])
+    '''
+    p = r.sample(range(1,len(s_prime)-1), 2)
+    if k == 1:
+        s_prime = swap_single(s_prime, p[0])
+    elif k == 2:
+        s_prime = interchange_single(s_prime, p[0], p[1])
+    elif k == 3:
+        s_prime = insertion_single(s_prime, p[0], p[1])
+    else :
+        raise Exception("number of beinghbor exceeded")
+    
+    return s_prime
+
+# TODO: les voisinages doivent respecter les contraintes dures
+def BestImprovement(factory,solution, k, t0, max_time):
+    if k == 1:
+        # voisinage 1 : permuter les opérations côte à côte entre elles (2-swap)
+        s_prime = swap(factory, solution, t0, max_time)
+        #print("swap")
+    elif k == 2:
+        s_prime = interchange(factory, solution, t0, max_time)
+        #print("interchange")
+    elif k == 3:
+        s_prime = insertion(factory, solution, t0, max_time)
+        #print("insertion")
+    # autre idée exchange mais que les 2 trucs à côté
+    else :
+        raise Exception("number of beinghbor exceeded")
+    return s_prime
+
+def swap(factory, solution, t0, max_time):
+    sol_score = f(factory, decode_sol(factory, solution))
+    for i in range(len(solution)-1):
+        new_sol = swap_single(solution, i)
+        new_sol_score = f(factory, decode_sol(factory, new_sol))
+        if new_sol_score < sol_score :
+            sol_score=new_sol_score
+            solution = copy.deepcopy(new_sol)
+        if t.time()-t0 >= max_time :
+            return solution
+    return solution
+    
+def swap_single(solution, i):
+    new_sol = copy.deepcopy(solution)
+    new_sol[i], new_sol[i+1] = solution[i+1], solution[i]
+    return new_sol
+
+def interchange(factory, solution, t0, max_time):
+    sol_score = f(factory, decode_sol(factory, solution))
+    for i in range(len(solution)-1):
+        for j in range(len(solution)-1):
+            if i!=j:
+                new_sol = interchange_single(solution, i, j)
+                new_sol_score = f(factory, decode_sol(factory, new_sol))
+                if new_sol_score < sol_score :
+                    sol_score=new_sol_score
+                    solution = copy.deepcopy(new_sol)
+                if t.time()-t0 >= max_time :
+                    return solution
+    return solution
+
+def interchange_single(solution, i, j):
+    new_sol = copy.deepcopy(solution)
+    new_sol[i], new_sol[j] = solution[j], solution[i]
+    return new_sol
+
+def insertion(factory, solution, t0, max_time):
+    sol_score = f(factory, decode_sol(factory, solution))
+    for i in range(len(solution)-1):
+        for j in range(len(solution)-1):
+            if i!=j:
+                new_sol = insertion_single(solution, i, j)
+                #new_sol[i], new_sol[j] = solution[j], solution[i]
+                new_sol_score = f(factory, decode_sol(factory, new_sol))
+                if new_sol_score < sol_score :
+                    sol_score=new_sol_score
+                    solution = copy.deepcopy(new_sol)
+                if t.time()-t0 >= max_time :
+                    return solution
+    return solution
+    
+def insertion_single(solution, i, j):
+    new_sol = copy.deepcopy(solution)
+    val = new_sol.pop(i)
+    new_sol.insert(j, val)
+    return new_sol
+
+
 
 def f(factory, solution):
     return factory.get_total_cost(solution)
