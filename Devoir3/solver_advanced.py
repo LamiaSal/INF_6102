@@ -11,19 +11,25 @@ def solve(factory):
     :return: a dictionnary where the keys are the machines and the values are the ordered list of tuples (job, operation, start, end) 
              treated by the machines
     """
-
+    
     # time maxed to 20 minutes
     MAX_TIME = 300
-    k_max=3
+    k_max=2
     MAX_ITER_WITHOUT_IMP = 20
-    
+
     solution = init_encoded(factory)
+
+    for i in range(100):
+        s = init_encoded(factory)
+        if f(factory, decode_sol(factory, s)) < f(factory, decode_sol(factory, solution)):
+            solution  = copy.deepcopy(s)
+    
     s_star = copy.deepcopy(solution)
     score_star= f(factory, decode_sol(factory, s_star))
-    
+    print("score de départ", score_star)
     
     t0 = t.time()
-    nb_iter_restart =0
+    nb_iter_restart = 0
     while t.time()-t0 < MAX_TIME:
         solution = VND(factory, solution,k_max)
         solution_score = f(factory, decode_sol(factory, solution))
@@ -31,14 +37,15 @@ def solve(factory):
             s_star = copy.deepcopy(solution)
             score_star = solution_score
             print("score_star",score_star)
+            nb_iter_restart = 0
+        else:
+            nb_iter_restart += 1
         
         
-        if nb_iter_restart >=MAX_ITER_WITHOUT_IMP:
+        if nb_iter_restart >= MAX_ITER_WITHOUT_IMP:
             solution = init_encoded(factory)
             print("RESTART numéro", nb_iter_restart, "best cost:",score_star)
-        nb_iter_restart += 1
-        print("best cost:",score_star)
-        
+            nb_iter_restart = 0
 
     return decode_sol(factory, s_star)
 
@@ -61,7 +68,6 @@ def decode_sol(factory, sol_encoded):
     for job in sol_encoded:
         # ASSIGNER DE FAÇON PLUS SMART les jobs au machines !!
         machines = [m for m in range(1,factory.n_mach+1) if (job,ope_job[job]+1,m) in factory.p]
-
         
         mach = machines[0]
         time_m=time_mach[mach]
@@ -69,8 +75,7 @@ def decode_sol(factory, sol_encoded):
             if time_mach[machines[m]] <= time_m:
                 mach = machines[m]
                 time_m = time_mach[mach]
-                
-
+        
         # Computing the start and end dates
         te = max(time_job[job],time_mach[mach])
         ts = te + factory.p[(job,ope_job[job]+1,mach)]
@@ -80,7 +85,6 @@ def decode_sol(factory, sol_encoded):
         solution[mach].append((job,ope_job[job],te,ts))
         time_job[job] = ts
         time_mach[mach] = ts
-    
     return solution 
 
 
@@ -97,14 +101,13 @@ def BestImprovement(factory, k,solution):
     if k == 1:
         # voisinage 1 : permuter les opérations côte à côte entre elles (2-swap)
         s_prime = swap(factory, solution)
-        print("swap")
+        #print("swap")
     elif k == 2:
         s_prime = interchange(factory, solution)
-        print("interchange")
+        #print("interchange")
     elif k == 3:
-        print("insertion")
+        #print("insertion")
         s_prime = insertion(factory, solution)
-
     # autre idée exchange mais que les 2 trucs à côté
     else :
         raise Exception("number of beinghbor exceeded")
