@@ -14,7 +14,7 @@ def solve(factory):
     
     # time maxed to 20 minutes
     MAX_TIME =1200
-    k_max=3
+    k_max=2
     MAX_ITER_WITHOUT_IMP = 10
 
     solution = init_encoded(factory)
@@ -33,7 +33,6 @@ def solve(factory):
     while t.time()-t0 < MAX_TIME:
         
         solution = GVNS(factory, solution,k_max,t0,MAX_TIME)
-        print(t0)
         solution_score = f(factory, decode_sol(factory, solution))
         if solution_score < score_star:
             s_star = copy.deepcopy(solution)
