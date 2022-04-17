@@ -1,7 +1,6 @@
 import copy
 import random as r
 import time as t
-import numpy as np
 
 def solve(factory):
     """
@@ -13,7 +12,7 @@ def solve(factory):
     """
     
     # time maxed to 20 minutes
-    MAX_TIME =1200
+    MAX_TIME = 10
     k_max=2
     MAX_ITER_WITHOUT_IMP = 10
 
@@ -30,9 +29,11 @@ def solve(factory):
     
     t0 = t.time()
     nb_iter_restart = 0
+    n_tot_iter = 0
     while t.time()-t0 < MAX_TIME:
         
-        solution = GVNS(factory, solution,k_max,t0,MAX_TIME)
+        solution, n_iter = GVNS(factory, solution,k_max,t0,MAX_TIME)
+        n_tot_iter += n_iter
         solution_score = f(factory, decode_sol(factory, solution))
         if solution_score < score_star:
             s_star = copy.deepcopy(solution)
@@ -46,6 +47,7 @@ def solve(factory):
             print("RESTART numéro", nb_iter_restart, "best cost:",score_star)
             nb_iter_restart = 0
 
+    print("Total itérations : ", n_tot_iter)
     return decode_sol(factory, s_star)
 
 def init_encoded(factory):
@@ -67,7 +69,7 @@ def decode_sol(factory, sol_encoded):
     for job in sol_encoded:
         # ASSIGNER DE FAÇON PLUS SMART les jobs au machines !!
         machines = [m for m in range(1,factory.n_mach+1) if (job,ope_job[job]+1,m) in factory.p]
-        
+
         mach = machines[0]
         time_m=time_mach[mach]
         for m in range(1, len(machines)):
@@ -90,25 +92,29 @@ def decode_sol(factory, sol_encoded):
 # TODO: considérer les voisinage du plus petit au plus grand
 def GVNS(factory,s,k_max, t0, max_time):
     k=1
+    n_tot_iter = 0
     while k<=k_max:
         s_prime = shake(factory, s,k)
-        s_prime_prime = VND(factory,s_prime,k_max,t0, max_time) #BestImprovement(factory,k, s_prime)
+        s_prime_prime, n_iter = VND(factory,s_prime,k_max,t0, max_time) #BestImprovement(factory,k, s_prime)
+        n_tot_iter += n_iter
         s, k = NeighborhoodChange(factory, s, s_prime_prime, k)
         #print(k)
         if t.time()-t0 >= max_time :
             print("done")
-            return s
-    return s
+            return s, n_tot_iter
+    return s, n_tot_iter
 
 def VND(factory,s,k_max,t0, max_time):
     k=1
+    n_iter = 0
     while k<=k_max:
+        n_iter += 1
         s_prime = BestImprovement(factory, s, k, t0, max_time)
         s, k = NeighborhoodChange(factory, s, s_prime, k)
         if t.time()-t0 >= max_time :
             print("done")
-            return s
-    return s
+            return s, n_iter
+    return s, n_iter
 
 def NeighborhoodChange(factory, s, s_prime, k):
     '''
@@ -216,7 +222,6 @@ def insertion_single(solution, i, j):
     val = new_sol.pop(i)
     new_sol.insert(j, val)
     return new_sol
-
 
 
 def f(factory, solution):
