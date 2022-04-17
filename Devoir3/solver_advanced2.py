@@ -1,8 +1,6 @@
 import time as t
 import numpy as np
 
-interpret_mode = 4
-
 def solve(factory):
     """
     A random feasible solution of the problem
@@ -18,6 +16,8 @@ def solve(factory):
     MAX_TIME = 10
     k_max = 2
     MAX_ITER_WITHOUT_IMP = 10  # 5*n_jobs ? n_total_ope ? 10 ?
+    global interpret_mode
+    interpret_mode = 4
 
     solution, solution_score = init_random(n_jobs, n_ope, n_machines, n_total_ope, durations, factory, 100)
 
@@ -50,11 +50,11 @@ def solve(factory):
     print("Nb de restart : ", n_restart)
     print("Nb total d'itérations : ", n_tot_iter)
 
-    if interpret_mode == 4:
+    '''if interpret_mode == 4:
         complete_solution = interpret_python_greedy(factory, s_star)
         greedy_score = evaluation(complete_solution)
         if greedy_score < score_star:
-            return complete_solution
+            return complete_solution'''
 
     return decode(interpret(s_star, n_jobs, n_machines, n_ope, n_total_ope, durations, factory))
 
