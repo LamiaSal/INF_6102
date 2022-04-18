@@ -1,0 +1,38 @@
+A :
+10s
+départ 48
+2 restart
+141 iter
+final 47
+
+
+B :
+20min
+départ 552
+25 restart
+2631 iter
+final 507
+
+
+C :
+20min
+départ 818
+8 restart
+691 iter
+final 756
+
+
+D :
+20min
+départ 1003
+0 restart
+204 iter
+final 829
+
+
+E :
+20min
+départ 1219
+0 restart
+49 iter
+final 989

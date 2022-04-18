@@ -1,5 +1,6 @@
 import time as t
 import numpy as np
+import threading
 
 def solve(factory):
     """
@@ -13,13 +14,13 @@ def solve(factory):
     n_jobs, n_machines, n_ope, n_total_ope, durations = transform(factory)
 
     # time maxed to 20 minutes
-    MAX_TIME = 10
+    MAX_TIME = 1200
     k_max = 2
     MAX_ITER_WITHOUT_IMP = 10  # 5*n_jobs ? n_total_ope ? 10 ?
     global interpret_mode
-    interpret_mode = 4
+    interpret_mode = 5
 
-    solution, solution_score = init_random(n_jobs, n_ope, n_machines, n_total_ope, durations, factory, 100)
+    solution, solution_score = init_random(n_jobs, n_ope, n_machines, n_total_ope, durations, factory, 1000)
 
     s_star = solution.copy()
     score_star = solution_score
@@ -43,22 +44,25 @@ def solve(factory):
 
         if nb_iter_restart >= MAX_ITER_WITHOUT_IMP:
             n_restart += 1
-            solution, solution_score = init_random(n_jobs, n_ope, n_machines, n_total_ope, durations, factory, 100)
+            solution, solution_score = init_random(n_jobs, n_ope, n_machines, n_total_ope, durations, factory, 1000)
             #print("RESTART numéro", nb_iter_restart, "best cost:",score_star)
             nb_iter_restart = 0
 
     print("Nb de restart : ", n_restart)
     print("Nb total d'itérations : ", n_tot_iter)
 
-    '''if interpret_mode == 4:
+    if interpret_mode == 4:
         complete_solution = interpret_python_greedy(factory, s_star)
         greedy_score = evaluation(complete_solution)
         if greedy_score < score_star:
-            return complete_solution'''
+            return complete_solution
 
     return decode(interpret(s_star, n_jobs, n_machines, n_ope, n_total_ope, durations, factory))
 
 
+#################################
+# Transformation des données de base
+#################################
 def transform(factory):
     n_jobs = factory.n_jobs
     n_machines = factory.n_mach
@@ -72,6 +76,9 @@ def transform(factory):
     return n_jobs, n_machines, n_ope, n_total_ope, durations
 
 
+#################################
+# Décodeurs
+#################################
 def interpret(solution, n_jobs, n_machines, n_ope, n_total_ope, durations, factory):
     if interpret_mode == 0:
         return interpret_greedy(solution, n_jobs, n_machines, n_ope, n_total_ope, durations)
@@ -264,11 +271,14 @@ def interpret_python_greedy(factory, sol_encoded):
             else:
                 durations.append(-1)
         slots = [(m, time_mach[m], -1) for m in range(1,factory.n_mach+1) if(job, n_ope, m) in factory.p]
-        slots += [(m, ts, i) for m, liste_ope in solution.items() for i, (_, _, _, ts) in enumerate(liste_ope[:len(liste_ope) - 1]) if liste_ope[i + 1][2] - max(ts,time_job[job]) >= durations[m-1]]
+        for m, liste_ope in solution.items():
+            if durations[m-1] != -1:
+                slots += [(m, ts, i) for i, (_, _, _, ts) in enumerate(liste_ope[:len(liste_ope) - 1]) if liste_ope[i + 1][2] >= durations[m-1] + max(ts,time_job[job])]
 
         b_mach, b_ts, b_i = slots[0]
         for mach, ts, i in slots[1:]:
             if ts <= b_ts:
+                b_ts = ts
                 b_mach = mach
                 b_i = i
 
@@ -281,12 +291,25 @@ def interpret_python_greedy(factory, sol_encoded):
         if b_i == -1:
             solution[b_mach].append((job, n_ope, te, ts))
         else:
-            solution[b_mach].insert(b_i+1,(job, n_ope, te, ts))
+            solution[b_mach].insert(b_i+1, (job, n_ope, te, ts))
         time_job[job] = ts
-        time_mach[b_mach] = max(ts,time_mach[b_mach])
+        time_mach[b_mach] = max(ts, time_mach[b_mach])
     return solution
 
 
+#################################
+# Evaluation
+#################################
+def evaluation(complete_solution):
+    if interpret_mode <= 3:
+        return complete_solution[:,:,3].max()
+    else:
+        return max([complete_solution[m][-1][-1] for m in range(1,len(complete_solution)+1) if len(complete_solution[m])>0])
+
+
+#################################
+# Restitution de la solution
+#################################
 def decode(complete_solution):
     if interpret_mode <= 3:
         result = dict()
@@ -302,11 +325,14 @@ def decode(complete_solution):
         return complete_solution
 
 
+#################################
+# Initialisations
+#################################
 def init_base(n_jobs, n_ope):
     solution = []
     for i in range(n_jobs):
         solution += [i] * n_ope[i]
-    return np.array(solution)
+    return np.array(solution, dtype=np.int)
 
 
 def init_random(n_jobs, n_ope, n_machines, n_total_ope, durations, factory, n):
@@ -324,6 +350,71 @@ def init_random(n_jobs, n_ope, n_machines, n_total_ope, durations, factory, n):
     return best_sol, best_score
 
 
+def init_ACO(n_jobs, n_ope, n_machines, n_total_ope, durations, factory, n, n_ants, t_max=3.0, t_min=1.0, rho=0.2, alpha=1, beta=1):
+    best_score = 100000
+    best_sol = None
+    tau = np.full((n_total_ope, n_jobs), t_max, dtype=np.float)
+    for i in range(n):
+        current_best_sol = None
+        current_best_score = 100000
+        worst_score = 0
+        for ant in range(n_ants):
+            sol = np.zeros(n_total_ope, dtype=np.int)
+
+            current_ope = np.zeros(n_jobs, dtype=np.int)
+            time_job = np.zeros(n_jobs, dtype=np.int)
+            time_machine = np.zeros(n_machines, dtype=np.int)
+
+            for var in range(n_total_ope):
+                open_jobs = np.nonzero(current_ope < n_ope)[0]
+                heuristic = np.zeros(len(open_jobs), dtype=np.int)
+                machine_delta = []
+                for k, j in enumerate(open_jobs):
+                    mask = durations[j, current_ope[j], :] != -1
+                    possible_machines = np.nonzero(mask)[0]
+                    costs = durations[j, current_ope[j], :][mask]
+                    total_costs = costs + np.maximum(time_machine[possible_machines], time_job[j])
+                    index = np.argmin(total_costs)
+                    heuristic[k] = total_costs[index]
+                    machine_delta.append((possible_machines[index], total_costs[index]))
+
+                heuristic_val = (heuristic / max(heuristic)) ** beta
+                ph = tau[var, open_jobs] ** alpha
+                probas = ph * heuristic_val
+                probas /= sum(probas)
+
+                index = np.random.choice(len(open_jobs), 1, p=probas)
+                job = open_jobs[index]
+                sol[var] = job
+
+                current_ope[job] += 1
+                time_job[job] = heuristic[index]
+                i,j = machine_delta[index[0]]
+                time_machine[i] = j
+
+            score = evaluation(interpret(sol, n_jobs, n_ope, n_machines, n_total_ope, durations, factory))
+            if score > worst_score:
+                worst_score = score
+
+            if score < current_best_score:
+                current_best_sol = sol.copy()
+                current_best_score = score
+
+        tau = (1 - rho) * tau
+        for var,job in enumerate(current_best_sol):
+            tau[var,job] = max(min(tau[var,job] + worst_score/current_best_score,t_max),t_min)
+
+        if current_best_score < best_score:
+            best_score = current_best_score
+            best_sol = current_best_sol.copy()
+
+    assert (np.bincount(best_sol) == n_ope).all(), "Not correct number of jobs : " + str(np.bincount(best_sol) ) + " et " + str(n_ope)
+    return best_sol
+
+
+#################################
+# Fonctions de recherche
+#################################
 def GVNS(n_jobs, n_machines, n_ope, n_total_ope, durations, factory, s, score, k_max, t0, max_time):
     k = 1
     n_tot_iter = 0
@@ -392,7 +483,9 @@ def best_improvement(n_jobs, n_machines, n_ope, n_total_ope, durations, factory,
         raise Exception("number of neighborhood exceeded")
     return s_prime, score
 
-
+#################################
+# Fonctions de mouvement et voisinage
+#################################
 def swap(n_jobs, n_machines, n_ope, n_total_ope, durations, factory, solution, score, t0, max_time):
     for i in range(len(solution)-1):
         new_sol = solution.copy()
@@ -452,18 +545,3 @@ def insertion_single(solution, i, j):
     solution = np.delete(solution, i)
     np.insert(solution, j, val)
     return solution
-
-
-def evaluation(complete_solution):
-    if interpret_mode <= 3:
-        return complete_solution[:,:,3].max()
-    else:
-        return max([complete_solution[m][-1][-1] for m in range(1,len(complete_solution)+1) if len(complete_solution[m])>0])
-
-
-def init_ACO():
-    return
-
-
-def init_Schrage():
-    return
