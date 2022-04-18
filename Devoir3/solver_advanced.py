@@ -1,6 +1,7 @@
 import copy
 import random as r
 import time as t
+import numpy as np
 
 def solve(factory):
     """
@@ -12,7 +13,7 @@ def solve(factory):
     """
     
     # time maxed to 20 minutes
-    MAX_TIME = 10
+    MAX_TIME = 1200
     k_max=2
     MAX_ITER_WITHOUT_IMP = 10
 
@@ -25,20 +26,17 @@ def solve(factory):
     
     s_star = copy.deepcopy(solution)
     score_star= f(factory, decode_sol(factory, s_star))
-    print("score de départ", score_star)
+    #print("score de départ", score_star)
     
     t0 = t.time()
     nb_iter_restart = 0
-    n_tot_iter = 0
     while t.time()-t0 < MAX_TIME:
         
-        solution, n_iter = GVNS(factory, solution,k_max,t0,MAX_TIME)
-        n_tot_iter += n_iter
+        solution = GVNS(factory, solution,k_max,t0,MAX_TIME)
         solution_score = f(factory, decode_sol(factory, solution))
         if solution_score < score_star:
             s_star = copy.deepcopy(solution)
             score_star = solution_score
-            print("score_star",score_star)
             nb_iter_restart = 0
         else:
             nb_iter_restart += 1
@@ -47,18 +45,35 @@ def solve(factory):
             print("RESTART numéro", nb_iter_restart, "best cost:",score_star)
             nb_iter_restart = 0
 
-    print("Total itérations : ", n_tot_iter)
     return decode_sol(factory, s_star)
 
 def init_encoded(factory):
-        solution =[]
-        for i in range(1,factory.n_jobs+1):
-            solution += [ i ]*factory.n_ope[i]
-        r.shuffle(solution)
-        assert len(solution) == sum(factory.n_ope.values())
-        return solution
+    '''
+    create random chromosome
+    input : 
+    :param factory: object describing the input
+
+    output :
+    param solution: list of integers correponding to the operations cf rapport for more information.
+    '''
+    solution =[]
+    for i in range(1,factory.n_jobs+1):
+        solution += [ i ]*factory.n_ope[i]
+    r.shuffle(solution)
+    assert len(solution) == sum(factory.n_ope.values())
+    return solution
 
 def decode_sol(factory, sol_encoded):
+    '''
+    function to decode the chromosome into an actual planning
+    input : 
+    :param factory: object describing the input
+    :sol_encoded: chromosome, list of integers correponding to the operations cf rapport for more information.
+
+    output :
+    param solution: a dictionnary where the keys are the machines and the values are the ordered list of tuples (job, operation, start, end) 
+    treated by the machines
+    '''
 
     ope_job = {i:0 for i in range(1, factory.n_jobs+1)}
     solution = {m:[] for m in range(1,factory.n_mach+1)}
@@ -69,7 +84,7 @@ def decode_sol(factory, sol_encoded):
     for job in sol_encoded:
         # ASSIGNER DE FAÇON PLUS SMART les jobs au machines !!
         machines = [m for m in range(1,factory.n_mach+1) if (job,ope_job[job]+1,m) in factory.p]
-
+        
         mach = machines[0]
         time_m=time_mach[mach]
         for m in range(1, len(machines)):
@@ -89,58 +104,86 @@ def decode_sol(factory, sol_encoded):
     return solution 
 
 
-# TODO: considérer les voisinage du plus petit au plus grand
+
 def GVNS(factory,s,k_max, t0, max_time):
+    '''
+    GVNS : general variable neighbor search
+    input : 
+    :param factory: object describing the input
+    :s: chromosome, list of integers correponding to the operations cf rapport for more information.
+    :k_max: number of nieghborhood considered
+    :t0: time chen the search begun
+    :max_time: maximum time for the execution (20 minutes)
+
+    output :
+    :s: chromosome, list of integers correponding to the operations cf rapport for more information.
+    '''
     k=1
-    n_tot_iter = 0
     while k<=k_max:
         s_prime = shake(factory, s,k)
-        s_prime_prime, n_iter = VND(factory,s_prime,k_max,t0, max_time) #BestImprovement(factory,k, s_prime)
-        n_tot_iter += n_iter
+        s_prime_prime = VND(factory,s_prime,k_max,t0, max_time)
         s, k = NeighborhoodChange(factory, s, s_prime_prime, k)
-        #print(k)
         if t.time()-t0 >= max_time :
-            print("done")
-            return s, n_tot_iter
-    return s, n_tot_iter
+            return s
+    return s
 
 def VND(factory,s,k_max,t0, max_time):
+    '''
+    VND : variable neighbor descent
+    input : 
+    :param factory: object describing the input
+    :s: chromosome, list of integers correponding to the operations cf rapport for more information.
+    :k_max: number of nieghborhood considered
+    :t0: time chen the search begun
+    :max_time: maximum time for the execution (20 minutes)
+
+    output :
+    :s: chromosome, list of integers correponding to the operations cf rapport for more information.
+    '''
     k=1
-    n_iter = 0
     while k<=k_max:
-        n_iter += 1
         s_prime = BestImprovement(factory, s, k, t0, max_time)
         s, k = NeighborhoodChange(factory, s, s_prime, k)
         if t.time()-t0 >= max_time :
-            print("done")
-            return s, n_iter
-    return s, n_iter
+            return s
+    return s
 
 def NeighborhoodChange(factory, s, s_prime, k):
     '''
-    TODO: description
+    Function to decide if a move should be made or not
+    input : 
+    :param factory: object describing the input
+    :s: previou chromosome
+    :s_prime: chroomosome with the move made
+    :k: cureent neighborhood
+
+    output :
+    :s: chromosome after move or not
+    :k: next neighborhood 
     '''
     if f(factory,  decode_sol(factory, s_prime))<f(factory, decode_sol(factory, s)):
         s=copy.deepcopy(s_prime) # make a move
         k=1 # initial neighborhood
-        #print("improved", f(factory,  decode_sol(factory, s_prime)) )
     else:
         k+=1 # next neighborhood
     return s, k
 
 def shake(factory, solution, k):
-    # Exchange +Insert+ Exchange
+    '''
+    compute the best neighbor of the neighborhood k
+    input : 
+    :param factory: object describing the input
+    :solution: chromosome, list of integers correponding to the operations cf rapport for more information.
+    :k: current neighbor
+    
+    output :
+    :s_prime: a neighbor of the neighborhood k
+    '''
     s_prime = copy.deepcopy(solution)
-    '''
-    l = r.sample(range(1,len(s_prime)-1), 6)
-    s_prime = interchange_single(s_prime, l[0], l[1])
-    s_prime = insertion_single(s_prime, l[2], l[3])
-    s_prime = interchange_single(s_prime, l[4], l[5])
-    '''
     p = r.sample(range(1,len(s_prime)-1), 2)
-    if k == 1:
+    if k == 2:
         s_prime = swap_single(s_prime, p[0])
-    elif k == 2:
+    elif k == 1:
         s_prime = interchange_single(s_prime, p[0], p[1])
     elif k == 3:
         s_prime = insertion_single(s_prime, p[0], p[1])
@@ -149,24 +192,45 @@ def shake(factory, solution, k):
     
     return s_prime
 
-# TODO: les voisinages doivent respecter les contraintes dures
+
 def BestImprovement(factory,solution, k, t0, max_time):
-    if k == 1:
-        # voisinage 1 : permuter les opérations côte à côte entre elles (2-swap)
+    '''
+    compute the best neighbor of the neighborhood k
+    input : 
+    :param factory: object describing the input
+    :solution: chromosome, list of integers correponding to the operations cf rapport for more information.
+    :k: current neighbor
+    :t0: time when the search begun
+    :max_time: maximum time for the execution (20 minutes)
+    
+
+    output :
+    :s_prime: the best neighbor k solution
+    '''
+    if k == 2:
         s_prime = swap(factory, solution, t0, max_time)
-        #print("swap")
-    elif k == 2:
+    elif k == 1:
         s_prime = interchange(factory, solution, t0, max_time)
-        #print("interchange")
     elif k == 3:
         s_prime = insertion(factory, solution, t0, max_time)
-        #print("insertion")
-    # autre idée exchange mais que les 2 trucs à côté
     else :
         raise Exception("number of beinghbor exceeded")
     return s_prime
 
+
+############ swap ############
 def swap(factory, solution, t0, max_time):
+    '''
+    swap neighborhood
+    input : 
+    :param factory: object describing the input
+    :solution: chromosome, list of integers correponding to the operations cf rapport for more information.
+    :t0: time when the search begun
+    :max_time: maximum time for the execution (20 minutes)
+
+    output :
+    :solution: the best neighbor solution after swap
+    '''
     sol_score = f(factory, decode_sol(factory, solution))
     for i in range(len(solution)-1):
         new_sol = swap_single(solution, i)
@@ -179,11 +243,32 @@ def swap(factory, solution, t0, max_time):
     return solution
     
 def swap_single(solution, i):
+    '''
+    interchange, interchnage the i ème element of the solution and with the i+1 eme element
+    input : 
+    :solution: chromosome, list of integers correponding to the operations cf rapport for more information.
+    :i: integer
+
+    output :
+    :solution: the neighbor solution
+    '''
     new_sol = copy.deepcopy(solution)
     new_sol[i], new_sol[i+1] = solution[i+1], solution[i]
     return new_sol
 
+########## interchange ##########
 def interchange(factory, solution, t0, max_time):
+    '''
+    interchange neighborhood
+    input : 
+    :param factory: object describing the input
+    :solution: chromosome, list of integers correponding to the operations cf rapport for more information.
+    :t0: time when the search begun
+    :max_time: maximum time for the execution (20 minutes)
+
+    output :
+    :solution: the best neighbor solution after innterchange
+    '''
     sol_score = f(factory, decode_sol(factory, solution))
     for i in range(len(solution)-1):
         for j in range(len(solution)-1):
@@ -198,11 +283,33 @@ def interchange(factory, solution, t0, max_time):
     return solution
 
 def interchange_single(solution, i, j):
+    '''
+    interchange, interchnage the i ème element of the solution and with the j eme element
+    input : 
+    :solution: chromosome, list of integers correponding to the operations cf rapport for more information.
+    :i: integer
+    :j: integer
+
+    output :
+    :solution: the neighbor solution
+    '''
     new_sol = copy.deepcopy(solution)
     new_sol[i], new_sol[j] = solution[j], solution[i]
     return new_sol
 
+########## insertion ##########
 def insertion(factory, solution, t0, max_time):
+    '''
+    insertion neighborhood
+    input : 
+    :param factory: object describing the input
+    :solution: chromosome, list of integers correponding to the operations cf rapport for more information.
+    :t0: time when the search begun
+    :max_time: maximum time for the execution (20 minutes)
+
+    output :
+    :solution: the best neighbor solution after insertion
+    '''
     sol_score = f(factory, decode_sol(factory, solution))
     for i in range(len(solution)-1):
         for j in range(len(solution)-1):
@@ -213,19 +320,28 @@ def insertion(factory, solution, t0, max_time):
                 if new_sol_score < sol_score :
                     sol_score=new_sol_score
                     solution = copy.deepcopy(new_sol)
+                    return solution
                 if t.time()-t0 >= max_time :
                     return solution
     return solution
     
 def insertion_single(solution, i, j):
+    '''
+    insertion, take the i ème element of the solution and put it in front of the j eme element
+    input : 
+    :solution: chromosome, list of integers correponding to the operations cf rapport for more information.
+    :i: integer
+    :j: integer
+
+    output :
+    :solution: the neighbor solution
+    '''
     new_sol = copy.deepcopy(solution)
     val = new_sol.pop(i)
     new_sol.insert(j, val)
     return new_sol
 
 
+########## Evaluation function ##########
 def f(factory, solution):
     return factory.get_total_cost(solution)
-
-def sol_init_NEH(factory):
-    return None
