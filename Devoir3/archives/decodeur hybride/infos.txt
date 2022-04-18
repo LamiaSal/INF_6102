@@ -15,9 +15,19 @@ final 505
 
 
 C :
+20min
+départ 818
+7 restart
+431 iter
+final 756
 
 
 D :
+20min
+départ 1003
+1 restart
+123 iter
+final 828
 
 
 E :
