@@ -59,9 +59,23 @@ if __name__ == '__main__':
     #print("Evaluation : ", sa2.evaluation(complete_solution))
     #print("Ancienne evaluation : ",sa.f(factory, sa.decode_sol(factory, solution+1)))
     solution = sa2.solve(factory)
-    solution2 = sa.solve(factory)
+    #solution2 = sa.solve(factory)
     #solution = sa2.decode(sa2.interpret_base_exact(solution, n_jobs, n_machines, n_ope, n_total_ope, durations))
     #solution = sa2.solve(factory)
+
+    '''n_jobs, n_machines, n_ope, n_total_ope, durations = sa2.transform(factory)
+
+
+    start = time.time()
+    solution = sa2.init_ACO(n_jobs, n_ope, n_machines, n_total_ope, durations, factory, 100, 10)
+    score = sa2.evaluation(sa2.interpret(solution, n_jobs, n_machines, n_ope, n_total_ope, durations, factory))
+    end = time.time()
+    print("ACO : ", end - start, "Score : ", score)
+    start = time.time()
+    solution, score = sa2.init_random(n_jobs, n_ope, n_machines, n_total_ope, durations, factory, 1000)
+    end = time.time()
+    print("Random : ", end - start, "Score : ", score)
+    solution = sa2.interpret_python_greedy(factory, solution)'''
 
     solving_time = round((time.time() - start_time) / 60, 2)
 

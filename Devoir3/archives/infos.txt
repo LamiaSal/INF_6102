@@ -1,0 +1,6 @@
+en moyenne sur 1000 init
+   ACO sur B : 568 en 8sec
+   Random : 572 en 0.27sec
+
+   ACO sur E : 1425 en 54sec
+   Random : 1193 en 2.2sec

@@ -1,0 +1,22 @@
+A :
+10s
+départ 47
+1 restart
+55 iter
+final 47
+
+
+B :
+20min
+départ 595
+61 restart
+7534 iter
+final 504
+
+
+E :
+20min
+départ 1037
+0 restart
+14 iter
+final 993
