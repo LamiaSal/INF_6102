@@ -46,7 +46,8 @@ def solve_local_search(eternity_puzzle):
     t0 = t.time()
     while t.time()-t0 < max_duration:
         #print( "best cost:",best_sol_cost, " solcost",sol_cost)
-        solution, sol_cost = hill_climbing(solution,sol_cost, n, board_size, eternity_puzzle)
+        solution, sol_cost = hill_climbing_first_improv(solution,sol_cost, n, board_size, eternity_puzzle)
+        #solution, sol_cost = hill_climbing_best_neighboor(solution,sol_cost, n, board_size, eternity_puzzle)
 
         
         if best_sol_cost > sol_cost :
@@ -65,7 +66,7 @@ def solve_local_search(eternity_puzzle):
     return best_sol, best_sol_cost
 
 
-def hill_climbing(best_sol,best_sol_cost, n, board_size, eternity_puzzle):
+def hill_climbing_first_improv(best_sol,best_sol_cost, n, board_size, eternity_puzzle):
     # TODO: si on considére pas tous les vosinages, prendre un subset 
     # mais randomizer le choix du i et du j de tel sortes à ce qu'ils soient unique tout de même
     solution = best_sol.copy()
@@ -114,14 +115,74 @@ def hill_climbing(best_sol,best_sol_cost, n, board_size, eternity_puzzle):
                 solution,new_sol, eternity_puzzle,board_size )
             #neighbor_score = eval_neighbours__(i, j, solution,new_sol, eternity_puzzle)
             if neighbor_score > 0:
-                solution = new_sol.copy()
+                new_sol_cost = eternity_puzzle.get_total_n_conflict(new_sol)
+                
+                #if best_sol_cost > new_sol_cost:
+                    
+                    #solution = new_sol.copy()
+                    #best_sol = new_sol.copy()
+                    #best_sol_cost = new_sol_cost
+                    #return new_sol, new_sol_cost
+                
+                return new_sol, new_sol_cost
+    return best_sol, best_sol_cost
+
+def hill_climbing_best_neighboor(best_sol,best_sol_cost, n, board_size, eternity_puzzle):
+    # TODO: si on considére pas tous les vosinages, prendre un subset 
+    # mais randomizer le choix du i et du j de tel sortes à ce qu'ils soient unique tout de même
+    solution = best_sol.copy()
+    for i in range(n):#eternity.board_size
+        for j in range(i):#eternity.board_size
+            # TODO : question la matrix est symétrique non ??
+            #print("i : ",i, " j : ", j)
+            new_sol = solution.copy()
+
+            # 2-swap
+            new_sol[i], new_sol[j] = solution[j], solution[i]
+            
+            # rotating
+            i_i, i_j, new_sol_i_south, new_sol_i_east = south_east_pos(i, new_sol, board_size)
+            j_i, j_j, new_sol_j_south, new_sol_j_east = south_east_pos(j, new_sol, board_size)
+            
+
+            r_new_sol_i = new_sol[i]
+            r_new_sol_j = new_sol[j]
+            r_new_sol_i_score = eval_rotation(i_i, i_j, r_new_sol_i, new_sol_i_south, new_sol_i_east, board_size)
+            r_new_sol_j_score = eval_rotation(j_i, j_j, r_new_sol_j, new_sol_j_south, new_sol_j_east, board_size)
+            
+            
+            for permutation_idx in range(4):
+                r_new_sol_i_c = eternity_puzzle.generate_rotation(new_sol[i])[permutation_idx]
+                r_new_sol_i_c_score = eval_rotation(i_i, i_j, r_new_sol_i_c, new_sol_i_south, new_sol_i_east, board_size)
+                
+                if r_new_sol_i_c_score < r_new_sol_i_score  :
+                    r_new_sol_i  = r_new_sol_i_c
+                    r_new_sol_i_score = r_new_sol_i_c_score
+
+                r_new_sol_j_c = eternity_puzzle.generate_rotation(new_sol[j])[permutation_idx]
+                r_new_sol_j_c_score = eval_rotation(j_i, j_j, r_new_sol_j_c, new_sol_j_south, new_sol_j_east, board_size)
+                
+                if r_new_sol_j_score > r_new_sol_j_c_score :
+                    r_new_sol_j  = r_new_sol_j_c
+                    r_new_sol_j_score = r_new_sol_j_c_score
+            
+            new_sol[i], new_sol[j] =r_new_sol_i, r_new_sol_j
+
+            # if value is positive it means the neighbor is a better solution
+            neighbor_score = eval_neighbours(i, j,\
+                i_i, i_j, new_sol_i_south, new_sol_i_east,\
+                j_i, j_j, new_sol_j_south, new_sol_j_east,\
+                solution,new_sol, eternity_puzzle,board_size )
+            #neighbor_score = eval_neighbours__(i, j, solution,new_sol, eternity_puzzle)
+            if neighbor_score > 0:
+                new_sol_cost = eternity_puzzle.get_total_n_conflict(new_sol)
+                if best_sol_cost > new_sol_cost:
+                    #solution = new_sol.copy()
+                    best_sol = new_sol.copy()
+                    best_sol_cost = new_sol_cost
+                    #return best_sol, eternity_puzzle.get_total_n_conflict(best_sol)
         #print("i : ",i, " score : ", eternity_puzzle.get_total_n_conflict(solution))
-    
-    sol_cost = eternity_puzzle.get_total_n_conflict(solution)
-    if best_sol_cost > sol_cost :
-        return solution, sol_cost
-    else :
-        return best_sol, best_sol_cost
+    return best_sol, best_sol_cost#eternity_puzzle.get_total_n_conflict(best_sol)
 
 
 def south_east_pos(i, solution, board_size):
@@ -134,6 +195,7 @@ def south_east_pos(i, solution, board_size):
     new_sol_i_east = solution[i_east]
 
     return i_i, i_j, new_sol_i_south, new_sol_i_east
+
 def eval_rotation(i, j, sol_k,sol_k_south,sol_k_east,board_size):
         
         n_conflict = 0
@@ -189,19 +251,19 @@ def eval_neighbours__(i, j, solution,new_sol, eternity_puzzle) :
     j_i= j%board_size
     j_j= j//board_size
 
-    p_prev_1 = get_piece_n_confllicts(i_i, i_j, solution,board_size)
-    p_prev_2 = get_piece_n_confllicts(j_i, j_j, solution,board_size)
+    p_prev_1 = get_piece_n_conflicts(i_i, i_j, solution,board_size)
+    p_prev_2 = get_piece_n_conflicts(j_i, j_j, solution,board_size)
     
     prev_local_n_conflicts= p_prev_1 + p_prev_2
 
-    p_aft_1 = get_piece_n_confllicts(i_i, i_j, new_sol,board_size)
-    p_aft_2 = get_piece_n_confllicts(j_i, j_j, new_sol,board_size)
+    p_aft_1 = get_piece_n_conflicts(i_i, i_j, new_sol,board_size)
+    p_aft_2 = get_piece_n_conflicts(j_i, j_j, new_sol,board_size)
     aft_local_n_conflicts= p_aft_1 + p_aft_2
 
     return prev_local_n_conflicts - aft_local_n_conflicts
 
 
-def get_piece_n_confllicts(i,j, solution, board_size):
+def get_piece_n_conflicts(i,j, solution, board_size):
 
     n_conflict = 0
 
