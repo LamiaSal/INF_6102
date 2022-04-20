@@ -30,7 +30,7 @@ def solve_local_search(eternity_puzzle):
 
 
     print("Solveur local search")
-    RESTART = 30
+    RESTART = 50
     board_size = eternity_puzzle.board_size
     max_duration = 200 # Time allocated
     
@@ -45,28 +45,30 @@ def solve_local_search(eternity_puzzle):
     nb_iter_restart =0
     t0 = t.time()
     while t.time()-t0 < max_duration:
+        #print( "best cost:",best_sol_cost, " solcost",sol_cost)
+        solution, sol_cost = hill_climbing(solution,sol_cost, n, board_size, eternity_puzzle)
 
-        solution, sol_cost = hill_climbing(solution, n, board_size, eternity_puzzle)
-
+        
         if best_sol_cost > sol_cost :
             best_sol = copy.deepcopy(solution)
             best_sol_cost = sol_cost
+            #print(best_sol_cost)
             nb_iter_restart = 0
         else:
             nb_iter_restart += 1
         if nb_iter_restart >= RESTART:
             #solution, sol_cost = solver_random.solve_best_random(eternity_puzzle, 1)
             solution, sol_cost = gd.solve_heuristic(eternity_puzzle, 10)
-            print("cost départ",sol_cost)
             print("RESTART numéro", nb_iter_restart, "best cost:",best_sol_cost, " new cost départ",sol_cost)
             nb_iter_restart = 0
             
     return best_sol, best_sol_cost
 
 
-def hill_climbing(solution, n, board_size, eternity_puzzle):
+def hill_climbing(best_sol,best_sol_cost, n, board_size, eternity_puzzle):
     # TODO: si on considére pas tous les vosinages, prendre un subset 
     # mais randomizer le choix du i et du j de tel sortes à ce qu'ils soient unique tout de même
+    solution = best_sol.copy()
     for i in range(n):#eternity.board_size
         for j in range(i):#eternity.board_size
             # TODO : question la matrix est symétrique non ??
@@ -110,10 +112,16 @@ def hill_climbing(solution, n, board_size, eternity_puzzle):
                 i_i, i_j, new_sol_i_south, new_sol_i_east,\
                 j_i, j_j, new_sol_j_south, new_sol_j_east,\
                 solution,new_sol, eternity_puzzle,board_size )
+            #neighbor_score = eval_neighbours__(i, j, solution,new_sol, eternity_puzzle)
             if neighbor_score > 0:
-                solution = new_sol
+                solution = new_sol.copy()
         #print("i : ",i, " score : ", eternity_puzzle.get_total_n_conflict(solution))
-    return solution, eternity_puzzle.get_total_n_conflict(solution)
+    
+    sol_cost = eternity_puzzle.get_total_n_conflict(solution)
+    if best_sol_cost > sol_cost :
+        return solution, sol_cost
+    else :
+        return best_sol, best_sol_cost
 
 
 def south_east_pos(i, solution, board_size):
@@ -181,13 +189,42 @@ def eval_neighbours__(i, j, solution,new_sol, eternity_puzzle) :
     j_i= j%board_size
     j_j= j//board_size
 
-    p_prev_1 = eternity_puzzle.get_piece_n_confllicts(i_i, i_j, solution)
-    p_prev_2 = eternity_puzzle.get_piece_n_confllicts(j_i, j_j, solution)
+    p_prev_1 = get_piece_n_confllicts(i_i, i_j, solution,board_size)
+    p_prev_2 = get_piece_n_confllicts(j_i, j_j, solution,board_size)
     
     prev_local_n_conflicts= p_prev_1 + p_prev_2
 
-    p_aft_1 = eternity_puzzle.get_piece_n_confllicts(i_i, i_j, new_sol)
-    p_aft_2 = eternity_puzzle.get_piece_n_confllicts(j_i, j_j, new_sol)
+    p_aft_1 = get_piece_n_confllicts(i_i, i_j, new_sol,board_size)
+    p_aft_2 = get_piece_n_confllicts(j_i, j_j, new_sol,board_size)
     aft_local_n_conflicts= p_aft_1 + p_aft_2
 
     return prev_local_n_conflicts - aft_local_n_conflicts
+
+
+def get_piece_n_confllicts(i,j, solution, board_size):
+
+    n_conflict = 0
+
+    k = board_size * j + i
+    k_east = board_size * j + (i - 1)
+    k_south = board_size * (j - 1) + i
+
+    if i > 0 and solution[k][WEST] != solution[k_east][EAST]:
+        n_conflict += 1
+
+    if i == 0 and solution[k][WEST] != GRAY:
+        n_conflict += 1
+
+    if i == board_size - 1 and solution[k][EAST] != GRAY:
+        n_conflict += 1
+
+    if j > 0 and solution[k][SOUTH] != solution[k_south][NORTH]:
+        n_conflict += 1
+
+    if j == 0 and solution[k][SOUTH] != GRAY:
+        n_conflict += 1
+
+    if j == board_size - 1 and solution[k][NORTH] != GRAY:
+        n_conflict += 1
+
+    return n_conflict
