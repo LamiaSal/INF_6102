@@ -30,9 +30,9 @@ def solve_local_search(eternity_puzzle):
 
 
     print("Solveur local search")
-    RESTART = 50
+    RESTART = 60
     board_size = eternity_puzzle.board_size
-    max_duration = 200 # Time allocated
+    max_duration = 1200*3 # Time allocated
     
     n = eternity_puzzle.n_piece # size of the niegbor set considered each time
     
