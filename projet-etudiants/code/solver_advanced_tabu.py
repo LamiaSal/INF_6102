@@ -16,8 +16,8 @@ def solve_advanced(eternity_puzzle):
 
     max_duration = 3600  # Temps alloué
     max_iter_border = 400
-    patience_SA = 400
-    patience_ILS = 3000  # Un peu abusé je crois
+    patience_for_SA = 400
+    patience_for_ILS = 3000  # Un peu abusé je crois
     t0 = 100
     cooling = 0.99
     perturbation_ratio = 0.5
@@ -32,7 +32,8 @@ def solve_advanced(eternity_puzzle):
     best_score = score
     temp_best_score = score
     border_iter = 0
-    inside_iter = 0
+    inside_iter_tabu = 0
+    inside_iter_SA = 0
     ILS_iter = 0
     best_score_mem = []
     best_score_timestamp = []
@@ -55,7 +56,8 @@ def solve_advanced(eternity_puzzle):
 
         not_stagnating = True
         while not_stagnating:
-            solution, score = solve_inside(solution, tabu_length, temp_best_score, delta_matrix)
+            solution, score, nb_iter = solve_inside(solution, tabu_length, temp_best_score, delta_matrix, patience_for_SA, max_duration, start_time)
+            inside_iter_tabu += nb_iter
             if score < temp_best_score:
                 temp_best_score = score
 
@@ -86,6 +88,7 @@ def solve_advanced(eternity_puzzle):
         temp_best_score = 1000
 
     print("Nb of border iter : ", border_iter)
+    print("Nb of tabu iter : ", inside_iter_tabu)
     solution_final = retransform(best_sol)
     return solution_final, best_score
 
@@ -605,16 +608,104 @@ def eval_delta_corners(solution, p1, p2):
 ########################################################################################################################
 
 
-def solve_inside():
-    return
+def solve_inside(solution, tabu_length, temp_best_score, delta_matrix, patience_for_SA, max_duration, start_time):
+    n = len(solution)
+    n_pieces = (n - 2) ** 2
+
+    score = evaluation(solution)
+    best_sol = solution.copy()
+    best_score = score
+    nb_iter = 0
+
+    tabu_dict = dict()
+
+    while nb_iter < patience_for_SA and time.time() < max_duration + start_time and best_score > 0:
+        nb_iter += 1
+
+        best_moves = []
+        best_cost = 10
+        for p1 in range(n_pieces):
+            for p2 in range(p1):
+                for roll1 in range(4):
+                    for roll2 in range(4):
+                        temp_cost = delta_matrix[p1, p2, roll1, roll2]
+                        if score + temp_cost < temp_best_score:
+                            if temp_cost < best_cost:
+                                best_cost = temp_cost
+                                best_moves = [(p1, p2, roll1, roll2)]
+                            elif temp_cost == best_cost:
+                                best_moves.append((p1, p2, roll1, roll2))
+                        elif (p1, p2) not in tabu_dict or tabu_dict[(p1, p2)] + tabu_length < nb_iter:
+                            if temp_cost < best_cost:
+                                best_cost = temp_cost
+                                best_moves = [(p1, p2, roll1, roll2)]
+                            elif temp_cost == best_cost:
+                                best_moves.append((p1, p2, roll1, roll2))
+
+        p1, p2, roll1, roll2 = best_moves[np.random.randint(len(best_moves))]
+        tabu_dict[(p1, p2)] = nb_iter
+
+        p1_i = (p1 // n_pieces) + 1
+        p1_j = (p1 % n_pieces) + 1
+        p2_i = (p2 // n_pieces) + 1
+        p2_j = (p2 % n_pieces) + 1
+
+        piece1 = np.roll(solution[p1_i, p1_j, :], roll1)
+        piece2 = np.roll(solution[p2_i, p2_j, :], roll2)
+        solution[p2_i, p2_j, :] = piece1
+        solution[p1_i, p1_j, :] = piece2
+
+        #TODO : ajouter gestion de la stagnation
+        score += delta_matrix[p1, p2, roll1, roll2]
+        if score < temp_best_score:
+            temp_best_score = score
+        if score < best_score:
+            best_sol = solution.copy()
+            best_score = score
+        if score == 0:
+            break
+
+        if p2 == 0:
+            pieces_to_update = {p1 - 1, p1, p1 + 1, (n - 1) * 4 - 1, 0, 1}
+        else:
+            pieces_to_update = {p1 - 1, p1, p1 + 1, p2 - 1, p2, p2 + 1}
+
+        for p1 in pieces_to_update:
+            for p2 in range((n - 1) * 4):
+                if p1 == p2:
+                    continue
+
+                if p1 == 0 or p1 == (n - 1) or p1 == (n - 1) * 2 or p1 == (n - 1) * 3:
+                    if not (p2 == 0 or p2 == (n - 1) or p2 == (n - 1) * 2 or p2 == (n - 1) * 3):
+                        continue
+                    else:
+                        if p1 < p2:
+                            delta_matrix[p2, p1] = eval_delta_corners(solution, p2, p1)
+                        else:
+                            delta_matrix[p1, p2] = eval_delta_corners(solution, p1, p2)
+                else:
+                    if p1 < p2:
+                        delta_matrix[p2, p1] = eval_delta_edges(solution, p2, p1)
+                    else:
+                        delta_matrix[p1, p2] = eval_delta_edges(solution, p1, p2)
+
+    return best_sol, best_score, nb_iter
 
 
-def eval_delta_inside(solution):
+def eval_delta_inside(solution, p1, p2, roll1, roll2):
     return
 
 
 def create_delta_matrix(solution):
-    return
+    n = len(solution)
+    n_pieces = (n - 2) ** 2
+    delta_matrix = np.zeros((n_pieces,n_pieces,4,4), dtype=np.int8)
+    for p1 in range((n - 2) ** 2):
+        for p2 in range(p1):
+            for roll1 in range(4):
+                for roll2 in range(4):
+                    delta_matrix[p1, p2, roll1, roll2] = eval_delta_inside(solution, p1, p2, roll1, roll2)
+    return delta_matrix
 
 
 def simulated_annealing(solution, t0, alpha):
