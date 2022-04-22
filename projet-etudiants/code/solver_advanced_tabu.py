@@ -3,7 +3,7 @@ import time
 import solver_heuristic_greedy as shg
 
 def solve_advanced(eternity_puzzle):
-    #TODO : Ajouter tracé de courbe
+    #TODO : Ajouter listing pour tracé de courbe
     #TODO : Ajouter mémoire des restarts pour la moyenne globale
     """
     Your solver for the problem
@@ -13,10 +13,10 @@ def solve_advanced(eternity_puzzle):
     """
     start_time = time.time()
 
-    max_duration = 3600  # Temps alloué
-    max_iter_border = 400
-    patience_for_SA = 400
-    patience_for_ILS = 3000  # Un peu abusé je crois
+    max_duration = 10  # Temps alloué -> 3600
+    max_iter_border = 2 # -> 400
+    patience_for_SA = 2 # -> 400
+    patience_for_ILS = 2  # Un peu abusé je crois 1000/1500 plutôt
     t0 = 100
     cooling = 0.99
     perturbation_ratio = 0.5
@@ -26,7 +26,8 @@ def solve_advanced(eternity_puzzle):
     corners, edges, interiors = split(pieces)
     tabu_length = int(1.5 * n * n /4)
 
-    solution, score = init_greedy(100, n, corners, edges, interiors)
+    solution, score = init_greedy(1, n, corners, edges, interiors) # -> 100
+    print("Init finie, score de départ : ", score)
     best_sol = solution.copy()
     best_score = score
     temp_best_score = score
@@ -167,7 +168,7 @@ def evaluation(solution):
 ###########                                       Initialisation                                            ############
 ########################################################################################################################
 ########################################################################################################################
-def init_random(k, n, corners, edges, interiors):
+def init_semi_random(k, n, corners, edges, interiors):
     best_sol = None
     best_score = 1000
     for i in range(k - 1):
@@ -822,4 +823,37 @@ def simulated_annealing(solution, t0, cooling, delta_matrix, patience_for_ILS, m
 
 
 def perturbation(solution, perturbation_ratio):
+    n = len(solution)
+    n_pieces = n**2
+    nb_of_swap = int(n_pieces * perturbation_ratio)
+    corners = [(0, 0), (0, n - 1), (n - 1, 0), (n - 1, n - 1)]
+    edges = [(0,k) for k in range(1,n-1)] + [(k,n-1) for k in range(1,n-1)] + [(n-1,k) for k in range(1,n-1)] + [(k,0) for k in range(1,n-1)]
+    for i in range(nb_of_swap):
+        type_of_piece = np.random.rand()
+        if type_of_piece < 4/n_pieces:
+            p1, p2 = np.random.choice(4,2,False)
+            p1_i, p1_j = corners[p1]
+            p2_i, p2_j = corners[p2]
+            piece1 = np.roll(solution[p1_i, p1_j,:], p2-p1)
+            piece2 = np.roll(solution[p2_i, p2_j,:], p1-p2)
+            solution[p1_i, p1_j, :] = piece2
+            solution[p2_i, p2_j, :] = piece1
+        elif type_of_piece < (n-1)*4/n_pieces:
+            p1, p2 = np.random.choice((n - 2) * 4, 2, False)
+            p1_i, p1_j = edges[p1]
+            p2_i, p2_j = edges[p2]
+            side1 = p1 // (n-2)
+            side2 = p2 // (n-2)
+            piece1 = np.roll(solution[p1_i, p1_j, :], side2 - side1)
+            piece2 = np.roll(solution[p2_i, p2_j, :], side1 - side2)
+            solution[p1_i, p1_j, :] = piece2
+            solution[p2_i, p2_j, :] = piece1
+        else:
+            p1, p2 = np.random.choice((n-2)**2, 2, False)
+            p1_i, p1_j = p1//((n-2)**2) + 1, p1%((n-2)**2) + 1
+            p2_i, p2_j = p2//((n-2)**2) + 1, p2%((n-2)**2) + 1
+            piece1 = np.roll(solution[p1_i, p1_j, :], np.random.randint(4))
+            piece2 = np.roll(solution[p2_i, p2_j, :], np.random.randint(4))
+            solution[p1_i, p1_j, :] = piece2
+            solution[p2_i, p2_j, :] = piece1
     return solution
