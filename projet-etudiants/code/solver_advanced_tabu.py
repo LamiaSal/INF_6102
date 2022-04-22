@@ -1,6 +1,7 @@
 import numpy as np
 import time
 import solver_heuristic_greedy as shg
+#content = np.loadtxt("sample.txt")
 
 def solve_advanced(eternity_puzzle):
     #TODO : Ajouter listing pour tracé de courbe
@@ -13,20 +14,21 @@ def solve_advanced(eternity_puzzle):
     """
     start_time = time.time()
 
-    max_duration = 10  # Temps alloué -> 3600
-    max_iter_border = 2 # -> 400
-    patience_for_SA = 2 # -> 400
-    patience_for_ILS = 2  # Un peu abusé je crois 1000/1500 plutôt
+    n = eternity_puzzle.board_size
+
+    max_duration = 3600  # Temps alloué -> 3600
+    max_iter_border = int(400 * 16/n) # -> 400
+    patience_for_SA = int(400 * 16/n) # -> 400
+    patience_for_ILS = int(3000 * 16/n)  # Un peu abusé je crois 1000/1500 plutôt
     t0 = 100
     cooling = 0.99
     perturbation_ratio = 0.5
 
     pieces = transform(eternity_puzzle)
-    n = eternity_puzzle.board_size
     corners, edges, interiors = split(pieces)
     tabu_length = int(1.5 * n * n /4)
 
-    solution, score = init_greedy(1, n, corners, edges, interiors) # -> 100
+    solution, score = init_greedy(100, n, corners, edges, interiors) # -> 100
     print("Init finie, score de départ : ", score)
     best_sol = solution.copy()
     best_score = score
@@ -35,9 +37,9 @@ def solve_advanced(eternity_puzzle):
     inside_iter_tabu = 0
     inside_iter_SA = 0
     ILS_iter = 0
-    best_score_mem = []
-    best_score_timestamp = []
-    best_score_at_restart = []
+    best_score_mem = [best_score]
+    best_score_timestamp = [0]
+    best_score_at_restart = [best_score]
     while time.time() < max_duration + start_time and best_score > 0:
         ILS_iter += 1
         solution, nb_iter = solve_border(solution, max_iter_border, max_duration, start_time, tabu_length)
@@ -47,58 +49,65 @@ def solve_advanced(eternity_puzzle):
             temp_best_score = score
 
         if score < best_score:
+            best_score_mem.append(score)
+            best_score_timestamp.append(round((time.time() - start_time),2))
             best_sol = solution.copy()
             best_score = score
 
         if time.time() > max_duration + start_time or best_score == 0:
             break
 
-        delta_matrix = create_delta_matrix(solution)
-
         not_stagnating = True
         while not_stagnating:
-            solution, score, nb_iter = solve_inside(solution, tabu_length, temp_best_score, delta_matrix, patience_for_SA, max_duration, start_time)
-            eval = evaluation(solution) #TODO delete
-            assert score == eval, "Score après tabu ne correspond pas à la réalité :" + str(score) + " != " + str(eval) #TODO delete
+            solution, score, nb_iter = solve_inside(solution, tabu_length, temp_best_score, patience_for_SA, max_duration, start_time)
             inside_iter_tabu += nb_iter
             if score < temp_best_score:
                 temp_best_score = score
 
             if score < best_score:
+                best_score_mem.append(score)
+                best_score_timestamp.append(round((time.time() - start_time), 2))
                 best_sol = solution.copy()
                 best_score = score
 
-            if time.time() < max_duration + start_time or best_score == 0:
+            if time.time() > max_duration + start_time or best_score == 0:
                 print("Nb of border iter : ", border_iter)
                 print("Nb of tabu iter : ", inside_iter_tabu)
                 print("Nb of SA iter : ", inside_iter_SA)
                 print("Nb of ILS iter : ", ILS_iter)
                 solution_final = retransform(best_sol)
+                np.savetxt("scores_at_restart.txt", np.array(best_score_at_restart), delimiter=", ")
+                np.savetxt("best_score_mem.txt", np.array(best_score_mem), delimiter=", ")
+                np.savetxt("best_score_time.txt", np.array(best_score_timestamp), delimiter=", ")
                 return solution_final, best_score
 
-            solution, score, improvement, nb_iter = simulated_annealing(solution, t0, cooling, delta_matrix, patience_for_ILS, max_duration, start_time)
-            eval = evaluation(solution) #TODO delete
-            assert score == eval, "Score après SA ne correspond pas à la réalité :" + str(score) + " != " + str(eval) #TODO delete
+            solution, score, improvement, nb_iter = simulated_annealing(solution, t0, cooling, patience_for_ILS, max_duration, start_time)
             inside_iter_SA += nb_iter
             if improvement:
                 if score < temp_best_score:
                     temp_best_score = score
 
                 if score < best_score:
+                    best_score_mem.append(score)
+                    best_score_timestamp.append(round((time.time() - start_time), 2))
                     best_sol = solution.copy()
                     best_score = score
             else:
                 not_stagnating = False
 
-            if time.time() < max_duration + start_time or best_score == 0:
+            if time.time() > max_duration + start_time or best_score == 0:
                 print("Nb of border iter : ", border_iter)
                 print("Nb of tabu iter : ", inside_iter_tabu)
                 print("Nb of SA iter : ", inside_iter_SA)
                 print("Nb of ILS iter : ", ILS_iter)
                 solution_final = retransform(best_sol)
+                np.savetxt("scores_at_restart.txt", np.array(best_score_at_restart), delimiter=", ")
+                np.savetxt("best_score_mem.txt", np.array(best_score_mem), delimiter=", ")
+                np.savetxt("best_score_time.txt", np.array(best_score_timestamp), delimiter=", ")
                 return solution_final, best_score
 
         solution = perturbation(solution, perturbation_ratio)
+        best_score_at_restart.append(temp_best_score)
         temp_best_score = 1000
 
     print("Nb of border iter : ", border_iter)
@@ -106,6 +115,9 @@ def solve_advanced(eternity_puzzle):
     print("Nb of SA iter : ", inside_iter_SA)
     print("Nb of ILS iter : ", ILS_iter)
     solution_final = retransform(best_sol)
+    np.savetxt("scores_at_restart.txt", np.array(best_score_at_restart), delimiter=", ")
+    np.savetxt("best_score_mem.txt", np.array(best_score_mem), delimiter=", ")
+    np.savetxt("best_score_time.txt", np.array(best_score_timestamp), delimiter=", ")
     return solution_final, best_score
 
 
@@ -631,7 +643,7 @@ def eval_delta_corners(solution, p1, p2):
 ########################################################################################################################
 
 
-def solve_inside(solution, tabu_length, temp_best_score, delta_matrix, patience_for_SA, max_duration, start_time):
+def solve_inside(solution, tabu_length, temp_best_score, patience_for_SA, max_duration, start_time):
     n = len(solution)
     n_pieces = (n - 2) ** 2
 
@@ -641,6 +653,8 @@ def solve_inside(solution, tabu_length, temp_best_score, delta_matrix, patience_
     nb_iter = 0
 
     tabu_dict = dict()
+
+    delta_matrix = create_delta_matrix(solution)
 
     stagnating = 0
     while stagnating < patience_for_SA and time.time() < max_duration + start_time and best_score > 0:
@@ -679,7 +693,9 @@ def solve_inside(solution, tabu_length, temp_best_score, delta_matrix, patience_
         solution[p2_i, p2_j, :] = piece1
         solution[p1_i, p1_j, :] = piece2
 
-        score += delta_matrix[p1, p2, roll1, roll2]
+        delta = delta_matrix[p1, p2, roll1, roll2]
+        score += delta
+
         if score < temp_best_score:
             temp_best_score = score
         if score < best_score:
@@ -725,7 +741,6 @@ def solve_inside(solution, tabu_length, temp_best_score, delta_matrix, patience_
 
 def eval_delta_inside(solution, p1, p2, roll1, roll2):
     n = len(solution)
-    n_pieces = (n-2)**2
     p1_i = (p1 // (n-2)) + 1
     p1_j = (p1 % (n-2)) + 1
     p2_i = (p2 // (n-2)) + 1
@@ -734,22 +749,29 @@ def eval_delta_inside(solution, p1, p2, roll1, roll2):
     piece1_new = np.roll(piece1_old, roll1)
     piece2_old = solution[p2_i, p2_j, :]
     piece2_new = np.roll(piece2_old, roll2)
-    if p2 == p1-1:
+    if p2_i == p1_i and p2_j == p1_j - 1:
         surrounding1_old = np.array([solution[p1_i-1, p1_j, 2], solution[p1_i, p1_j+1, 3], solution[p1_i+1, p1_j, 0], solution[p1_i, p1_j-1, 1]], dtype=int)
         surrounding2_old = np.array([solution[p2_i - 1, p2_j, 2], solution[p2_i, p2_j + 1, 3], solution[p2_i + 1, p2_j, 0],solution[p2_i, p2_j - 1, 1]], dtype=int)
         surrounding1_new = np.array([solution[p1_i - 1, p1_j, 2], solution[p1_i, p1_j + 1, 3], solution[p1_i + 1, p1_j, 0],piece1_new[1]], dtype=int)
         surrounding2_new = np.array([solution[p2_i - 1, p2_j, 2], piece2_new[3], solution[p2_i + 1, p2_j, 0],solution[p2_i, p2_j - 1, 1]], dtype=int)
-        return ((surrounding2_new != piece1_new).sum() + (surrounding1_new != piece2_new).sum()) - ((surrounding1_old != piece1_old).sum() + (surrounding2_old != piece2_old).sum())
-    elif p1 + n - 2 == p2:
+        old = (surrounding1_old != piece1_old).sum() + (surrounding2_old != piece2_old).sum() - (piece1_old[3] != piece2_old[1]).sum()
+        new = (surrounding2_new != piece1_new).sum() + (surrounding1_new != piece2_new).sum() - (piece1_new[1] != piece2_new[3]).sum()
+        return new - old
+    elif p1 - n + 2 == p2:
         surrounding1_old = np.array([solution[p1_i - 1, p1_j, 2], solution[p1_i, p1_j + 1, 3], solution[p1_i + 1, p1_j, 0], solution[p1_i, p1_j - 1, 1]], dtype=int)
         surrounding2_old = np.array([solution[p2_i - 1, p2_j, 2], solution[p2_i, p2_j + 1, 3], solution[p2_i + 1, p2_j, 0], solution[p2_i, p2_j - 1, 1]], dtype=int)
         surrounding1_new = np.array([piece1_new[2], solution[p1_i, p1_j + 1, 3], solution[p1_i + 1, p1_j, 0], solution[p1_i, p1_j - 1, 1]], dtype=int)
         surrounding2_new = np.array([solution[p2_i - 1, p2_j, 2], solution[p2_i, p2_j + 1, 3], piece2_new[0], solution[p2_i, p2_j - 1, 1]], dtype=int)
-        return ((surrounding2_new != piece1_new).sum() + (surrounding1_new != piece2_new).sum()) - ((surrounding1_old != piece1_old).sum() + (surrounding2_old != piece2_old).sum())
+        old = (surrounding1_old != piece1_old).sum() + (surrounding2_old != piece2_old).sum() - (piece1_old[0] != piece2_old[2]).sum()
+        new = (surrounding2_new != piece1_new).sum() + (surrounding1_new != piece2_new).sum() - (piece1_new[2] != piece2_new[0]).sum()
+        return new - old
     else:
-        surrounding1 = np.array([solution[p1_i - 1, p1_j, 2], solution[p1_i, p1_j + 1, 3], solution[p1_i + 1, p1_j, 0],solution[p1_i, p1_j - 1, 1]], dtype=int)
-        surrounding2 = np.array([solution[p2_i - 1, p2_j, 2], solution[p2_i, p2_j + 1, 3], solution[p2_i + 1, p2_j, 0],solution[p2_i, p2_j - 1, 1]], dtype=int)
-        return ((surrounding2 != piece1_new).sum() + (surrounding1 != piece2_new).sum()) - ((surrounding1 != piece1_old).sum() + (surrounding2 != piece2_old).sum())
+        surrounding1 = np.array([solution[p1_i - 1, p1_j, 2], solution[p1_i, p1_j + 1, 3], solution[p1_i + 1, p1_j, 0], solution[p1_i, p1_j - 1, 1]], dtype=int)
+        surrounding2 = np.array([solution[p2_i - 1, p2_j, 2], solution[p2_i, p2_j + 1, 3], solution[p2_i + 1, p2_j, 0], solution[p2_i, p2_j - 1, 1]], dtype=int)
+
+        new = (surrounding2 != piece1_new).sum() + (surrounding1 != piece2_new).sum()
+        old = (surrounding1 != piece1_old).sum() + (surrounding2 != piece2_old).sum()
+        return new - old
 
 
 def create_delta_matrix(solution):
@@ -764,13 +786,16 @@ def create_delta_matrix(solution):
     return delta_matrix
 
 
-def simulated_annealing(solution, t0, cooling, delta_matrix, patience_for_ILS, max_duration, start_time):
+def simulated_annealing(solution, t0, cooling, patience_for_ILS, max_duration, start_time):
     n = len(solution)
     n_pieces = (n-2)**2
     temperature = t0
     nb_iter = 0
     stagnating = 0
     score = evaluation(solution)
+
+    delta_matrix = create_delta_matrix(solution)
+
     while stagnating < patience_for_ILS and time.time() < max_duration + start_time:
         nb_iter += 1
 
@@ -837,7 +862,7 @@ def perturbation(solution, perturbation_ratio):
     n = len(solution)
     n_pieces = n**2
     nb_of_swap = int(n_pieces * perturbation_ratio)
-    corners = [(0, 0), (0, n - 1), (n - 1, 0), (n - 1, n - 1)]
+    corners = [(0, 0), (0, n - 1), (n - 1, n - 1), (n - 1, 0)]
     edges = [(0,k) for k in range(1,n-1)] + [(k,n-1) for k in range(1,n-1)] + [(n-1,k) for k in range(n-2,0,-1)] + [(k,0) for k in range(n-2,0,-1)]
     for i in range(nb_of_swap):
         type_of_piece = np.random.rand()
