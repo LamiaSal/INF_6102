@@ -1,4 +1,8 @@
 import solver_advanced_tabu as sat
+import numpy as np
+import random as r
+r.seed(10)
+np.random.seed(10)
 #python main.py --agent=advanced --infile=instances/eternity_B.txt
 
 def solve_advanced(eternity_puzzle):

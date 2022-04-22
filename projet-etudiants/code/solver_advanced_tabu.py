@@ -58,6 +58,8 @@ def solve_advanced(eternity_puzzle):
         not_stagnating = True
         while not_stagnating:
             solution, score, nb_iter = solve_inside(solution, tabu_length, temp_best_score, delta_matrix, patience_for_SA, max_duration, start_time)
+            eval = evaluation(solution) #TODO delete
+            assert score == eval, "Score après tabu ne correspond pas à la réalité :" + str(score) + " != " + str(eval) #TODO delete
             inside_iter_tabu += nb_iter
             if score < temp_best_score:
                 temp_best_score = score
@@ -75,6 +77,8 @@ def solve_advanced(eternity_puzzle):
                 return solution_final, best_score
 
             solution, score, improvement, nb_iter = simulated_annealing(solution, t0, cooling, delta_matrix, patience_for_ILS, max_duration, start_time)
+            eval = evaluation(solution) #TODO delete
+            assert score == eval, "Score après SA ne correspond pas à la réalité :" + str(score) + " != " + str(eval) #TODO delete
             inside_iter_SA += nb_iter
             if improvement:
                 if score < temp_best_score:
@@ -325,8 +329,8 @@ def solve_border(solution, max_iter, max_duration, start_time, tabu_length):
     delta_matrix = np.zeros(((n-1)*4,(n-1)*4), dtype=np.int8)
     for p1 in range((n-1)*4):
         for p2 in range(p1):
-            if p1 == 0 or p1 == (n-1) or p1 == (n-1)*2 or p1 == (n-1)*3:
-                if not (p2 == 0 or p2 == (n-1) or p2 == (n-1)*2 or p2 == (n-1)*3):
+            if p1 in [0, (n - 1), (n - 1) * 2, (n - 1) * 3] or p2 in [0, (n - 1), (n - 1) * 2, (n - 1) * 3]:
+                if not (p1 in [0, (n - 1), (n - 1) * 2, (n - 1) * 3] and p2 in [0, (n - 1), (n - 1) * 2, (n - 1) * 3]):
                     continue
                 else:
                     delta_matrix[p1, p2] = eval_delta_corners(solution, p1, p2)
@@ -337,24 +341,24 @@ def solve_border(solution, max_iter, max_duration, start_time, tabu_length):
         nb_iter += 1
 
         best_moves = []
-        cost = 10
+        best_cost = 10
         for p1 in range((n - 1) * 4):
             for p2 in range(p1):
-                if p1 == 0 or p1 == (n - 1) or p1 == (n - 1) * 2 or p1 == (n - 1) * 3:
-                    if not (p2 == 0 or p2 == (n - 1) or p2 == (n - 1) * 2 or p2 == (n - 1) * 3):
+                if p1 in [0, (n - 1), (n - 1) * 2, (n - 1) * 3] or p2 in [0, (n - 1), (n - 1) * 2, (n - 1) * 3]:
+                    if not (p1 in [0, (n - 1), (n - 1) * 2, (n - 1) * 3] and p2 in [0, (n - 1), (n - 1) * 2,(n - 1) * 3]):
                         continue
                 temp_cost = delta_matrix[p1, p2]
                 if score + temp_cost < best_score:
-                    if temp_cost < cost:
-                        cost = temp_cost
+                    if temp_cost < best_cost:
+                        best_cost = temp_cost
                         best_moves = [(p1, p2)]
-                    elif temp_cost == cost:
+                    elif temp_cost == best_cost:
                         best_moves.append((p1, p2))
                 elif (p1,p2) not in tabu_dict or tabu_dict[(p1,p2)] + tabu_length < nb_iter:
-                    if temp_cost < cost :
-                        cost = temp_cost
+                    if temp_cost < best_cost:
+                        best_cost = temp_cost
                         best_moves = [(p1, p2)]
-                    elif temp_cost == cost :
+                    elif temp_cost == best_cost:
                         best_moves.append((p1, p2))
 
         p1, p2 = best_moves[np.random.randint(len(best_moves))]
@@ -371,26 +375,26 @@ def solve_border(solution, max_iter, max_duration, start_time, tabu_length):
         elif p1 < (n - 1) * 3:
             side1 = 2
             p1_i = n - 1
-            p1_j = p1 % (n - 1)
+            p1_j = (n-1) - (p1 % (n - 1))
         else:
             side1 = 3
-            p1_i = p1 % (n - 1)
+            p1_i = (n-1) - (p1 % (n - 1))
             p1_j = 0
         if p2 < n - 1:
             side2 = 0
             p2_i = 0
-            p2_j = p1
+            p2_j = p2
         elif p2 < (n - 1) * 2:
             side2 = 1
-            p2_i = p1 % (n - 1)
+            p2_i = p2 % (n - 1)
             p2_j = n - 1
         elif p2 < (n - 1) * 3:
             side2 = 2
             p2_i = n - 1
-            p2_j = p1 % (n - 1)
+            p2_j = (n-1) - (p2 % (n - 1))
         else:
             side2 = 3
-            p2_i = p1 % (n - 1)
+            p2_i = (n-1) - (p2 % (n - 1))
             p2_j = 0
 
         piece1 = np.roll(solution[p1_i,p1_j,:], side2 - side1)
@@ -404,19 +408,23 @@ def solve_border(solution, max_iter, max_duration, start_time, tabu_length):
             best_score = score
         if score == 0:
             break
-
+        pieces_to_update = {p1, p2}
         if p2 == 0:
-            pieces_to_update = {p1-1,p1,p1+1,(n - 1) * 4 -1,0,1}
+            pieces_to_update.update([(n - 1) * 4 -1,1])
         else:
-            pieces_to_update = {p1-1,p1,p1+1, p2-1,p2,p2+1}
+            pieces_to_update.update([p2-1,p2+1])
+        if p1 == (n-1)*4-1:
+            pieces_to_update.update([(n - 1) * 4 - 2, 0])
+        else:
+            pieces_to_update.update([p1 - 1, p1 + 1])
 
         for p1 in pieces_to_update:
             for p2 in range((n - 1) * 4):
                 if p1 == p2:
                     continue
 
-                if p1 == 0 or p1 == (n - 1) or p1 == (n - 1) * 2 or p1 == (n - 1) * 3:
-                    if not (p2 == 0 or p2 == (n - 1) or p2 == (n - 1) * 2 or p2 == (n - 1) * 3):
+                if p1 in [0, (n - 1), (n - 1) * 2, (n - 1) * 3] or p2 in [0, (n - 1), (n - 1) * 2, (n - 1) * 3]:
+                    if not (p1 in [0, (n - 1), (n - 1) * 2, (n - 1) * 3] and p2 in [0, (n - 1), (n - 1) * 2, (n - 1) * 3]):
                         continue
                     else:
                         if p1 < p2:
@@ -443,7 +451,7 @@ def eval_border(solution):
 
 
 def eval_delta_edges(solution, p1, p2):
-    n=len(solution)
+    n = len(solution)
     if p1 < n - 1:
         side1 = 0
         p1_i = 0
@@ -455,43 +463,43 @@ def eval_delta_edges(solution, p1, p2):
     elif p1 < (n - 1) * 3:
         side1 = 2
         p1_i = n - 1
-        p1_j = p1 % (n - 1)
+        p1_j = (n - 1) - (p1 % (n - 1))
     else:
         side1 = 3
-        p1_i = p1 % (n - 1)
+        p1_i = (n - 1) - (p1 % (n - 1))
         p1_j = 0
     if p2 < n - 1:
         side2 = 0
         p2_i = 0
-        p2_j = p1
+        p2_j = p2
     elif p2 < (n - 1) * 2:
         side2 = 1
-        p2_i = p1 % (n - 1)
+        p2_i = p2 % (n - 1)
         p2_j = n - 1
     elif p2 < (n - 1) * 3:
         side2 = 2
         p2_i = n - 1
-        p2_j = p1 % (n - 1)
+        p2_j = (n - 1) - (p2 % (n - 1))
     else:
         side2 = 3
-        p2_i = p1 % (n - 1)
+        p2_i = (n - 1) - (p2 % (n - 1))
         p2_j = 0
     if p2 == p1-1:
         if side1 == 0:
-            old = (solution[p2_i, p2_j-1, 1] != solution[p2_i, p2_j, 3]) + (solution[p2_i, p2_j, 1] != solution[p1_i, p1_j, 3]) + (solution[p1_i, p1_j+1, 1] != solution[p1_i, p1_j, 3])
-            new = (solution[p2_i, p2_j-1, 1] != solution[p1_i, p1_j, 3]) + (solution[p2_i, p2_j, 3] != solution[p1_i, p1_j, 1]) + (solution[p1_i, p1_j+1, 1] != solution[p2_i, p2_j, 3])
+            old = (solution[p2_i, p2_j-1, 1] != solution[p2_i, p2_j, 3]).sum() + (solution[p2_i, p2_j, 1] != solution[p1_i, p1_j, 3]).sum() + (solution[p1_i, p1_j+1, 3] != solution[p1_i, p1_j, 1]).sum()
+            new = (solution[p2_i, p2_j-1, 1] != solution[p1_i, p1_j, 3]).sum() + (solution[p2_i, p2_j, 3] != solution[p1_i, p1_j, 1]).sum() + (solution[p1_i, p1_j+1, 3] != solution[p2_i, p2_j, 1]).sum()
             return new - old
         elif side1 == 1:
-            old = (solution[p2_i-1, p2_j, 2] != solution[p2_i, p2_j, 0]) + (solution[p2_i, p2_j, 2] != solution[p1_i, p1_j, 0]) + (solution[p1_i+1, p1_j, 0] != solution[p1_i, p1_j, 2])
-            new = (solution[p2_i-1, p2_j, 2] != solution[p1_i, p1_j, 0]) + (solution[p2_i, p2_j, 0] != solution[p1_i, p1_j, 2]) + (solution[p1_i+1, p1_j, 0] != solution[p2_i, p2_j, 2])
+            old = (solution[p2_i-1, p2_j, 2] != solution[p2_i, p2_j, 0]).sum() + (solution[p2_i, p2_j, 2] != solution[p1_i, p1_j, 0]).sum() + (solution[p1_i+1, p1_j, 0] != solution[p1_i, p1_j, 2]).sum()
+            new = (solution[p2_i-1, p2_j, 2] != solution[p1_i, p1_j, 0]).sum() + (solution[p2_i, p2_j, 0] != solution[p1_i, p1_j, 2]).sum() + (solution[p1_i+1, p1_j, 0] != solution[p2_i, p2_j, 2]).sum()
             return new - old
         elif side1 == 2:
-            old = (solution[p2_i, p2_j + 1, 3] != solution[p2_i, p2_j, 1]) + (solution[p2_i, p2_j, 3] != solution[p1_i, p1_j, 1]) + (solution[p1_i, p1_j - 1, 3] != solution[p1_i, p1_j, 1])
-            new = (solution[p2_i, p2_j + 1, 3] != solution[p1_i, p1_j, 1]) + (solution[p2_i, p2_j, 1] != solution[p1_i, p1_j, 3]) + (solution[p1_i, p1_j - 1, 3] != solution[p2_i, p2_j, 1])
+            old = (solution[p2_i, p2_j + 1, 3] != solution[p2_i, p2_j, 1]).sum() + (solution[p2_i, p2_j, 3] != solution[p1_i, p1_j, 1]).sum() + (solution[p1_i, p1_j - 1, 1] != solution[p1_i, p1_j, 3]).sum()
+            new = (solution[p2_i, p2_j + 1, 3] != solution[p1_i, p1_j, 1]).sum() + (solution[p2_i, p2_j, 1] != solution[p1_i, p1_j, 3]).sum() + (solution[p1_i, p1_j - 1, 1] != solution[p2_i, p2_j, 3]).sum()
             return new - old
         else:
-            old = (solution[p2_i+1, p2_j, 0] != solution[p2_i, p2_j, 2]) + (solution[p2_i, p2_j, 0] != solution[p1_i, p1_j, 2]) + (solution[p1_i-1, p1_j, 2] != solution[p1_i, p1_j, 0])
-            new = (solution[p2_i+1, p2_j, 0] != solution[p1_i, p1_j, 2]) + (solution[p2_i, p2_j, 2] != solution[p1_i, p1_j, 0]) + (solution[p1_i-1, p1_j, 2] != solution[p2_i, p2_j, 0])
+            old = (solution[p2_i+1, p2_j, 0] != solution[p2_i, p2_j, 2]).sum() + (solution[p2_i, p2_j, 0] != solution[p1_i, p1_j, 2]).sum() + (solution[p1_i-1, p1_j, 2] != solution[p1_i, p1_j, 0]).sum()
+            new = (solution[p2_i+1, p2_j, 0] != solution[p1_i, p1_j, 2]).sum() + (solution[p2_i, p2_j, 2] != solution[p1_i, p1_j, 0]).sum() + (solution[p1_i-1, p1_j, 2] != solution[p2_i, p2_j, 0]).sum()
             return new - old
     else:
         if side1 == 0:
@@ -534,11 +542,14 @@ def eval_delta_edges(solution, p1, p2):
             color4 = solution[p2_i - 1, p2_j, 2]
             color1_p2 = solution[p2_i, p2_j, 2]
             color2_p2 = solution[p2_i, p2_j, 0]
-    return ((color1 != color1_p2) + (color2 != color2_p2) + (color3 != color1_p1) + (color4 != color2_p1)) - ((color1 != color1_p1) + (color2 != color2_p1) + (color3 != color1_p2) + (color4 != color2_p2))
+
+    old = (color1 != color1_p1).sum() + (color2 != color2_p1).sum() + (color3 != color1_p2).sum() + (color4 != color2_p2).sum()
+    new = (color1 != color1_p2).sum() + (color2 != color2_p2).sum() + (color3 != color1_p1).sum() + (color4 != color2_p1).sum()
+    return new - old
 
 
 def eval_delta_corners(solution, p1, p2):
-    n=len(solution)
+    n = len(solution)
     if p1 < n - 1:
         side1 = 0
         p1_i = 0
@@ -550,26 +561,26 @@ def eval_delta_corners(solution, p1, p2):
     elif p1 < (n - 1) * 3:
         side1 = 2
         p1_i = n - 1
-        p1_j = p1 % (n - 1)
+        p1_j = (n - 1) - (p1 % (n - 1))
     else:
         side1 = 3
-        p1_i = p1 % (n - 1)
+        p1_i = (n - 1) - (p1 % (n - 1))
         p1_j = 0
     if p2 < n - 1:
         side2 = 0
         p2_i = 0
-        p2_j = p1
+        p2_j = p2
     elif p2 < (n - 1) * 2:
         side2 = 1
-        p2_i = p1 % (n - 1)
+        p2_i = p2 % (n - 1)
         p2_j = n - 1
     elif p2 < (n - 1) * 3:
         side2 = 2
         p2_i = n - 1
-        p2_j = p1 % (n - 1)
+        p2_j = (n - 1) - (p2 % (n - 1))
     else:
         side2 = 3
-        p2_i = p1 % (n - 1)
+        p2_i = (n - 1) - (p2 % (n - 1))
         p2_j = 0
     if side1 == 0:
         color1 = solution[p1_i+1, p1_j, 0]
@@ -611,7 +622,7 @@ def eval_delta_corners(solution, p1, p2):
         color4 = solution[p2_i - 1, p2_j, 2]
         color1_p2 = solution[p2_i, p2_j, 1]
         color2_p2 = solution[p2_i, p2_j, 0]
-    return ((color1 != color1_p2) + (color2 != color2_p2) + (color3 != color1_p1) + (color4 != color2_p1)) - ((color1 != color1_p1) + (color2 != color2_p1) + (color3 != color1_p2) + (color4 != color2_p2))
+    return ((color1 != color1_p2).sum() + (color2 != color2_p2).sum() + (color3 != color1_p1).sum() + (color4 != color2_p1)).sum() - ((color1 != color1_p1).sum() + (color2 != color2_p1).sum() + (color3 != color1_p2).sum() + (color4 != color2_p2)).sum()
 
 ########################################################################################################################
 ########################################################################################################################
@@ -658,10 +669,10 @@ def solve_inside(solution, tabu_length, temp_best_score, delta_matrix, patience_
         p1, p2, roll1, roll2 = best_moves[np.random.randint(len(best_moves))]
         tabu_dict[(p1, p2)] = nb_iter
 
-        p1_i = (p1 // n_pieces) + 1
-        p1_j = (p1 % n_pieces) + 1
-        p2_i = (p2 // n_pieces) + 1
-        p2_j = (p2 % n_pieces) + 1
+        p1_i = (p1 // (n-2)) + 1
+        p1_j = (p1 % (n-2)) + 1
+        p2_i = (p2 // (n-2)) + 1
+        p2_j = (p2 % (n-2)) + 1
 
         piece1 = np.roll(solution[p1_i, p1_j, :], roll1)
         piece2 = np.roll(solution[p2_i, p2_j, :], roll2)
@@ -715,10 +726,10 @@ def solve_inside(solution, tabu_length, temp_best_score, delta_matrix, patience_
 def eval_delta_inside(solution, p1, p2, roll1, roll2):
     n = len(solution)
     n_pieces = (n-2)**2
-    p1_i = (p1 // n_pieces) + 1
-    p1_j = (p1 % n_pieces) + 1
-    p2_i = (p2 // n_pieces) + 1
-    p2_j = (p2 % n_pieces) + 1
+    p1_i = (p1 // (n-2)) + 1
+    p1_j = (p1 % (n-2)) + 1
+    p2_i = (p2 // (n-2)) + 1
+    p2_j = (p2 % (n-2)) + 1
     piece1_old = solution[p1_i,p1_j,:]
     piece1_new = np.roll(piece1_old, roll1)
     piece2_old = solution[p2_i, p2_j, :]
@@ -745,7 +756,7 @@ def create_delta_matrix(solution):
     n = len(solution)
     n_pieces = (n - 2) ** 2
     delta_matrix = np.zeros((n_pieces,n_pieces,4,4), dtype=np.int8)
-    for p1 in range((n - 2) ** 2):
+    for p1 in range(n_pieces):
         for p2 in range(p1):
             for roll1 in range(4):
                 for roll2 in range(4):
@@ -781,10 +792,10 @@ def simulated_annealing(solution, t0, cooling, delta_matrix, patience_for_ILS, m
         score += delta
         stagnating += 1
 
-        p1_i = (p1 // n_pieces) + 1
-        p1_j = (p1 % n_pieces) + 1
-        p2_i = (p2 // n_pieces) + 1
-        p2_j = (p2 % n_pieces) + 1
+        p1_i = (p1 // (n-2)) + 1
+        p1_j = (p1 % (n-2)) + 1
+        p2_i = (p2 // (n-2)) + 1
+        p2_j = (p2 % (n-2)) + 1
 
         piece1 = np.roll(solution[p1_i, p1_j, :], roll1)
         piece2 = np.roll(solution[p2_i, p2_j, :], roll2)
@@ -827,7 +838,7 @@ def perturbation(solution, perturbation_ratio):
     n_pieces = n**2
     nb_of_swap = int(n_pieces * perturbation_ratio)
     corners = [(0, 0), (0, n - 1), (n - 1, 0), (n - 1, n - 1)]
-    edges = [(0,k) for k in range(1,n-1)] + [(k,n-1) for k in range(1,n-1)] + [(n-1,k) for k in range(1,n-1)] + [(k,0) for k in range(1,n-1)]
+    edges = [(0,k) for k in range(1,n-1)] + [(k,n-1) for k in range(1,n-1)] + [(n-1,k) for k in range(n-2,0,-1)] + [(k,0) for k in range(n-2,0,-1)]
     for i in range(nb_of_swap):
         type_of_piece = np.random.rand()
         if type_of_piece < 4/n_pieces:
@@ -850,8 +861,8 @@ def perturbation(solution, perturbation_ratio):
             solution[p2_i, p2_j, :] = piece1
         else:
             p1, p2 = np.random.choice((n-2)**2, 2, False)
-            p1_i, p1_j = p1//((n-2)**2) + 1, p1%((n-2)**2) + 1
-            p2_i, p2_j = p2//((n-2)**2) + 1, p2%((n-2)**2) + 1
+            p1_i, p1_j = p1//((n-2)) + 1, p1%((n-2)) + 1
+            p2_i, p2_j = p2//((n-2)) + 1, p2%((n-2)) + 1
             piece1 = np.roll(solution[p1_i, p1_j, :], np.random.randint(4))
             piece2 = np.roll(solution[p2_i, p2_j, :], np.random.randint(4))
             solution[p1_i, p1_j, :] = piece2
