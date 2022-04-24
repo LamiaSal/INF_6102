@@ -3,7 +3,7 @@ import time
 import solver_heuristic_greedy as shg
 #content = np.loadtxt("sample.txt")
 
-def solve_advanced(eternity_puzzle):
+def solve_advanced(eternity_puzzle, tag, duration):
     #TODO : Ajouter listing pour tracé de courbe
     #TODO : Ajouter mémoire des restarts pour la moyenne globale
     """
@@ -16,10 +16,10 @@ def solve_advanced(eternity_puzzle):
 
     n = eternity_puzzle.board_size
 
-    max_duration = 3600  # Temps alloué -> 3600
-    max_iter_border = int(400 * 16/n) # -> 400
-    patience_for_SA = int(400 * 16/n) # -> 400
-    patience_for_ILS = int(3000 * 16/n)  # Un peu abusé je crois 1000/1500 plutôt
+    max_duration = duration  # Temps alloué
+    max_iter_border = int(200 * 16/n)
+    patience_for_SA = int(100 * 16/n)
+    patience_for_ILS = int(250 * 16/n)
     t0 = 100
     cooling = 0.99
     perturbation_ratio = 0.5
@@ -28,7 +28,7 @@ def solve_advanced(eternity_puzzle):
     corners, edges, interiors = split(pieces)
     tabu_length = int(1.5 * n * n /4)
 
-    solution, score = init_greedy(100, n, corners, edges, interiors) # -> 100
+    solution, score = init_greedy(1000, n, corners, edges, interiors)
     print("Init finie, score de départ : ", score)
     best_sol = solution.copy()
     best_score = score
@@ -76,9 +76,12 @@ def solve_advanced(eternity_puzzle):
                 print("Nb of SA iter : ", inside_iter_SA)
                 print("Nb of ILS iter : ", ILS_iter)
                 solution_final = retransform(best_sol)
-                np.savetxt("scores_at_restart.txt", np.array(best_score_at_restart), delimiter=", ")
-                np.savetxt("best_score_mem.txt", np.array(best_score_mem), delimiter=", ")
-                np.savetxt("best_score_time.txt", np.array(best_score_timestamp), delimiter=", ")
+                best_score_mem.append(best_score)
+                best_score_timestamp.append(round((time.time() - start_time), 2))
+                best_score_at_restart.append(temp_best_score)
+                np.savetxt("scores_at_restart"+str(tag)+".txt", np.array(best_score_at_restart), delimiter=", ")
+                np.savetxt("best_score_mem"+str(tag)+".txt", np.array(best_score_mem), delimiter=", ")
+                np.savetxt("best_score_time"+str(tag)+".txt", np.array(best_score_timestamp), delimiter=", ")
                 return solution_final, best_score
 
             solution, score, improvement, nb_iter = simulated_annealing(solution, t0, cooling, patience_for_ILS, max_duration, start_time)
@@ -101,9 +104,12 @@ def solve_advanced(eternity_puzzle):
                 print("Nb of SA iter : ", inside_iter_SA)
                 print("Nb of ILS iter : ", ILS_iter)
                 solution_final = retransform(best_sol)
-                np.savetxt("scores_at_restart.txt", np.array(best_score_at_restart), delimiter=", ")
-                np.savetxt("best_score_mem.txt", np.array(best_score_mem), delimiter=", ")
-                np.savetxt("best_score_time.txt", np.array(best_score_timestamp), delimiter=", ")
+                best_score_mem.append(best_score)
+                best_score_timestamp.append(round((time.time() - start_time), 2))
+                best_score_at_restart.append(temp_best_score)
+                np.savetxt("scores_at_restart"+str(tag)+".txt", np.array(best_score_at_restart), delimiter=", ")
+                np.savetxt("best_score_mem"+str(tag)+".txt", np.array(best_score_mem), delimiter=", ")
+                np.savetxt("best_score_time"+str(tag)+".txt", np.array(best_score_timestamp), delimiter=", ")
                 return solution_final, best_score
 
         solution = perturbation(solution, perturbation_ratio)
@@ -115,9 +121,12 @@ def solve_advanced(eternity_puzzle):
     print("Nb of SA iter : ", inside_iter_SA)
     print("Nb of ILS iter : ", ILS_iter)
     solution_final = retransform(best_sol)
-    np.savetxt("scores_at_restart.txt", np.array(best_score_at_restart), delimiter=", ")
-    np.savetxt("best_score_mem.txt", np.array(best_score_mem), delimiter=", ")
-    np.savetxt("best_score_time.txt", np.array(best_score_timestamp), delimiter=", ")
+    best_score_mem.append(best_score)
+    best_score_timestamp.append(round((time.time() - start_time), 2))
+    best_score_at_restart.append(temp_best_score)
+    np.savetxt("scores_at_restart"+str(tag)+".txt", np.array(best_score_at_restart), delimiter=", ")
+    np.savetxt("best_score_mem"+str(tag)+".txt", np.array(best_score_mem), delimiter=", ")
+    np.savetxt("best_score_time"+str(tag)+".txt", np.array(best_score_timestamp), delimiter=", ")
     return solution_final, best_score
 
 
@@ -799,7 +808,7 @@ def simulated_annealing(solution, t0, cooling, patience_for_ILS, max_duration, s
     while stagnating < patience_for_ILS and time.time() < max_duration + start_time:
         nb_iter += 1
 
-        p1 = np.random.randint(n_pieces)
+        p1 = np.random.randint(1,n_pieces)
         p2 = np.random.randint(p1)
         roll1 = np.random.randint(4)
         roll2 = np.random.randint(4)
