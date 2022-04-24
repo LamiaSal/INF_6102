@@ -8,6 +8,7 @@ python main.py --agent=heuristic --infile=instances/eternity_trivial_B.txt
 
 
 import numpy as np
+import time as t
 
 def solve_heuristic(eternity_puzzle, k):
     """
@@ -22,13 +23,28 @@ def solve_heuristic(eternity_puzzle, k):
     corners, edges, interiors = split(pieces)
     best_sol = generate_solution(n, corners, edges, interiors)
     best_score = evaluation(best_sol)
+
+    t0 = t.time()
+    somme = 0
     for i in range(k-1):
         solution = generate_solution(n, corners, edges, interiors)
         score = evaluation(solution)
+        somme += score
         if score < best_score:
             best_sol = solution.copy()
             best_score = score
     solution_final = retransform(best_sol)
+
+    tf =t.time()
+    a = open("moyenne_heur_"+eternity_puzzle.instance_file[10:], 'w')
+    a.write(" num itération: " + str(k) + "\n")
+    a.write(" score total: " + str(somme) + "\n")
+    a.write(" score moyen : " + str(somme/k)+ "\n")
+    a.write(" temps total: " + str(tf-t0)+ "\n")
+    a.write(" temps moyen : " + str((tf-t0)/k))
+
+    a.close()
+            
     return (solution_final, best_score)
 
 

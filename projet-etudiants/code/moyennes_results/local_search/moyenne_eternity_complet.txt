@@ -1,0 +1,5 @@
+ num itération: 1000
+ score total: 102716
+ score moyen : 102.716
+ temps total: 1772.8787231445312
+ temps moyen : 1.7728787231445313

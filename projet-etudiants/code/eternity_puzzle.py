@@ -23,6 +23,8 @@ class EternityPuzzle:
 
     def __init__(self, instance_file):
 
+        self.instance_file = instance_file
+
         with open(instance_file) as file:
             lines = file.readlines()
 
