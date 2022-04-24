@@ -1,5 +1,6 @@
 import numpy as np
 import copy
+import time as t
 
 
 def solve_random(eternity_puzzle):
@@ -41,14 +42,29 @@ def solve_best_random(eternity_puzzle, n_trial):
 
     best_solution = None
 
+    t0 = t.time()
+    
+    somme = 0
+
     for i in range(n_trial):
 
         cur_sol, cur_n_conflict = solve_random(eternity_puzzle)
-
+        somme += cur_n_conflict
         if cur_n_conflict < best_n_conflict:
             best_n_conflict = cur_n_conflict
             best_solution = cur_sol
 
     assert best_solution != None
+
+    tf =t.time()
+    a = open("moyenne_random_"+eternity_puzzle.instance_file[10:], 'w')
+    
+    a.write(" num itération: " + str(n_trial) + "\n")
+    a.write(" score total: " + str(somme) + "\n")
+    a.write(" score moyen : " + str(somme/n_trial)+ "\n")
+    a.write(" temps total: " + str(tf-t0)+ "\n")
+    a.write(" temps moyen : " + str((tf-t0)/n_trial))
+
+    a.close()
 
     return best_solution, best_n_conflict
