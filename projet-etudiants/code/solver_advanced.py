@@ -13,7 +13,4 @@ def solve_advanced(eternity_puzzle):
         cost is the cost of the solution
     """
     # TODO : Threading
-    # TODO : Tracé des courbes et enregistrement dans des fichiers de visu
-    # TODO : Moyenne sur plusieurs runs
-    np.savetxt("test.txt", np.array([1,2,3]), delimiter=", ")
-    return sat.solve_advanced(eternity_puzzle)
+    return sat.solve_advanced(eternity_puzzle, 0, 3600)

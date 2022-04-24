@@ -1,0 +1,11 @@
+run1
+complet avec 3h, 200border 100SA, 250ILS, 1000init 0.5ratio 1.5*n*n/4tabulength -> seeds à partir de 0
+
+run2
+instances avec 1h, 200*16/nborder 100*16/nSA, 60*16/nILS, 1000init 0.35ratio 1.5*n*n/4tabulength -> seeds à 0
+
+run3
+instances avec 1h, 200*16/nborder 100*16/nSA, 60*16/nILS, 1000init 0.35ratio 1.5*n*n/4tabulength -> seeds à 1
+
+run4
+2*instances avec 1h, 200border 100SA, 30ILS, 1000init 0.5ratio 1.5*16*16/4tabulength -> seeds 2 et 3
