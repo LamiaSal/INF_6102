@@ -50,9 +50,9 @@ def solve_heuristic(eternity_puzzle, k):
 
 def generate_solution(n, corners, edges, interiors):
     solution = np.zeros((n,n,4), dtype=np.uint8) #On représente la solution par une matrice 3D
-    open_corners = np.full(len(corners), True)
-    open_edges = np.full(len(edges), True)
-    open_interiors = np.full(len(interiors), True)
+    open_corners = np.full(len(corners), True, dtype=bool)
+    open_edges = np.full(len(edges), True, dtype=bool)
+    open_interiors = np.full(len(interiors), True, dtype=bool)
     for i in range(n):
         for j in range(n):
             if i == 0 and j == 0:  # On fixe le coin en haut à gauche pou éviter les solutions symétriques par rotation
