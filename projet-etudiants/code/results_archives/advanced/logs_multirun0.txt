@@ -1,0 +1,95 @@
+***********************************************************
+[INFO] Start the solving Eternity II - Run : 0
+[INFO] input file: instances/eternity_A.txt
+[INFO] output file: solution0.txt
+[INFO] visualization file: visualization0.png
+[INFO] board size: 4 x 4
+***********************************************************
+Init finie, score de départ :  3
+Nb of border iter :  0
+Nb of tabu iter :  2
+Nb of SA iter :  0
+Nb of ILS iter :  1
+***********************************************************
+[INFO] Solution obtained
+[INFO] Execution time: 0.02 minutes
+[INFO] Number of conflicts: 0
+[INFO] Feasible solution: True
+[INFO] Sanity check passed: True
+***********************************************************
+***********************************************************
+[INFO] Start the solving Eternity II - Run : 1
+[INFO] input file: instances/eternity_B.txt
+[INFO] output file: solution1.txt
+[INFO] visualization file: visualization1.png
+[INFO] board size: 7 x 7
+***********************************************************
+Init finie, score de départ :  11
+Nb of border iter :  16
+Nb of tabu iter :  24591
+Nb of SA iter :  790
+Nb of ILS iter :  1
+***********************************************************
+[INFO] Solution obtained
+[INFO] Execution time: 60.0 minutes
+[INFO] Number of conflicts: 3
+[INFO] Feasible solution: False
+[INFO] Sanity check passed: True
+***********************************************************
+***********************************************************
+[INFO] Start the solving Eternity II - Run : 2
+[INFO] input file: instances/eternity_C.txt
+[INFO] output file: solution2.txt
+[INFO] visualization file: visualization2.png
+[INFO] board size: 8 x 8
+***********************************************************
+Init finie, score de départ :  22
+Nb of border iter :  53
+Nb of tabu iter :  15866
+Nb of SA iter :  698
+Nb of ILS iter :  1
+***********************************************************
+[INFO] Solution obtained
+[INFO] Execution time: 60.0 minutes
+[INFO] Number of conflicts: 9
+[INFO] Feasible solution: False
+[INFO] Sanity check passed: True
+***********************************************************
+***********************************************************
+[INFO] Start the solving Eternity II - Run : 3
+[INFO] input file: instances/eternity_D.txt
+[INFO] output file: solution3.txt
+[INFO] visualization file: visualization3.png
+[INFO] board size: 9 x 9
+***********************************************************
+Init finie, score de départ :  25
+Nb of border iter :  13
+Nb of tabu iter :  10879
+Nb of SA iter :  629
+Nb of ILS iter :  1
+***********************************************************
+[INFO] Solution obtained
+[INFO] Execution time: 60.0 minutes
+[INFO] Number of conflicts: 13
+[INFO] Feasible solution: False
+[INFO] Sanity check passed: True
+***********************************************************
+***********************************************************
+[INFO] Start the solving Eternity II - Run : 4
+[INFO] input file: instances/eternity_E.txt
+[INFO] output file: solution4.txt
+[INFO] visualization file: visualization4.png
+[INFO] board size: 10 x 10
+***********************************************************
+Init finie, score de départ :  35
+Nb of border iter :  11
+Nb of tabu iter :  7893
+Nb of SA iter :  581
+Nb of ILS iter :  1
+***********************************************************
+[INFO] Solution obtained
+[INFO] Execution time: 60.0 minutes
+[INFO] Number of conflicts: 19
+[INFO] Feasible solution: False
+[INFO] Sanity check passed: True
+***********************************************************

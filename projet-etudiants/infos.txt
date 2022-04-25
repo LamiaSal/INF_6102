@@ -2,10 +2,13 @@ run1
 complet avec 3h, 200border 100SA, 250ILS, 1000init 0.5ratio 1.5*n*n/4tabulength -> seeds à partir de 0
 
 run2
-instances avec 1h, 200*16/nborder 100*16/nSA, 60*16/nILS, 1000init 0.35ratio 1.5*n*n/4tabulength -> seeds à 0
+instances avec 1h, 200*16/nborder 100*16/nSA, 60*16/nILS, 1000init 0.35ratio 1.5*n*n/4tabulength -> seeds à 0 -> élevé
 
 run3
-instances avec 1h, 200*16/nborder 100*16/nSA, 60*16/nILS, 1000init 0.35ratio 1.5*n*n/4tabulength -> seeds à 1
+instances avec 1h, 200*16/nborder 100*16/nSA, 60*16/nILS, 1000init 0.35ratio 1.5*n*n/4tabulength -> seeds à 1 -> élevé
 
 run4
-2*instances avec 1h, 200border 100SA, 30ILS, 1000init 0.5ratio 1.5*16*16/4tabulength -> seeds 2 et 3
+2*instances avec 1h, 200border 100SA, 30ILS, 1000init 0.5ratio 1.5*16*16/4tabulength -> seeds 2 et 3 -> moyen
+
+run5
+instances avec 1h, 200*n/16border 100*n/16SA, 30*n/16ILS, 1000init 0.35ratio 1.5*n*n/4tabulength -> seeds 4 -> adaptatif

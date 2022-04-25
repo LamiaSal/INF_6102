@@ -6,6 +6,7 @@ import solver_heuristic
 import solver_local_search
 import solver_advanced
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def parse_arguments():
@@ -66,7 +67,7 @@ if __name__ == '__main__':
     print("[INFO] Sanity check passed: %s" % e.verify_solution(solution))
     print("***********************************************************")'''
 
-    start_time = time.time()
+    '''start_time = time.time()
     a = np.full((256,256,16),12, dtype=np.int8)
     best = 0
     for i in range(256):
@@ -75,6 +76,35 @@ if __name__ == '__main__':
                 b = a[i,j,k]
                 if b>best:
                     best = b
-    print(time.time() - start_time)
+    print(time.time() - start_time)'''
     #Conclusion : pas cher en ram mais la triple boucle est 2x plus chère que la simple boucle -> linéariser
+
+    ls = 83
+    heuristic = 89
+    randomscore = 501
+    score = np.loadtxt('score_mem0.txt')
+    score_timestamp = np.loadtxt('score_time0.txt')
+
+    fig = plt.figure()
+
+    plt.plot(score_timestamp, score, 'b-', label="Advanced")
+
+    x2 = [score_timestamp[0], score_timestamp[-1]]
+    y2 = [heuristic, heuristic]
+    plt.plot(x2, y2, 'r--', label="Heuristic")
+
+    x3 = [score_timestamp[0], score_timestamp[-1]]
+    y3 = [ls, ls]
+    plt.plot(x3, y3, 'g--', label="Simple local")
+
+    x4 = [score_timestamp[0], score_timestamp[-1]]
+    y4 = [randomscore, randomscore]
+    plt.plot(x4, y4, 'm--', label="Random")
+
+    plt.xlabel('Time (seconds)')
+    plt.ylabel('Nb of conflicts')
+    plt.title('Evolution of the advanced solution during solving')
+
+    plt.legend()
+    fig.savefig('evolution.png', dpi=fig.dpi)
 

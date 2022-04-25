@@ -17,9 +17,9 @@ def solve_advanced(eternity_puzzle, tag, duration):
     n = eternity_puzzle.board_size
 
     max_duration = duration  # Temps alloué
-    max_iter_border = int(200 * 16/n)
-    patience_for_SA = int(100 * 16/n)
-    patience_for_ILS = int(250 * 16/n)
+    max_iter_border = int(200)
+    patience_for_SA = int(100)
+    patience_for_ILS = int(100)
     t0 = 100
     cooling = 0.99
     perturbation_ratio = 0.5
@@ -37,9 +37,9 @@ def solve_advanced(eternity_puzzle, tag, duration):
     inside_iter_tabu = 0
     inside_iter_SA = 0
     ILS_iter = 0
-    best_score_mem = [best_score]
-    best_score_timestamp = [0]
-    best_score_at_restart = [best_score]
+    #best_score_mem = [best_score]
+    #best_score_timestamp = [0]
+    #best_score_at_restart = [best_score]
     while time.time() < max_duration + start_time and best_score > 0:
         ILS_iter += 1
         solution, nb_iter = solve_border(solution, max_iter_border, max_duration, start_time, tabu_length)
@@ -49,8 +49,8 @@ def solve_advanced(eternity_puzzle, tag, duration):
             temp_best_score = score
 
         if score < best_score:
-            best_score_mem.append(score)
-            best_score_timestamp.append(round((time.time() - start_time),2))
+            #best_score_mem.append(score)
+            #best_score_timestamp.append(round((time.time() - start_time),2))
             best_sol = solution.copy()
             best_score = score
 
@@ -65,8 +65,8 @@ def solve_advanced(eternity_puzzle, tag, duration):
                 temp_best_score = score
 
             if score < best_score:
-                best_score_mem.append(score)
-                best_score_timestamp.append(round((time.time() - start_time), 2))
+                #best_score_mem.append(score)
+                #best_score_timestamp.append(round((time.time() - start_time), 2))
                 best_sol = solution.copy()
                 best_score = score
 
@@ -76,12 +76,12 @@ def solve_advanced(eternity_puzzle, tag, duration):
                 print("Nb of SA iter : ", inside_iter_SA)
                 print("Nb of ILS iter : ", ILS_iter)
                 solution_final = retransform(best_sol)
-                best_score_mem.append(best_score)
+                '''best_score_mem.append(best_score)
                 best_score_timestamp.append(round((time.time() - start_time), 2))
                 best_score_at_restart.append(temp_best_score)
                 np.savetxt("scores_at_restart"+str(tag)+".txt", np.array(best_score_at_restart), delimiter=", ")
                 np.savetxt("best_score_mem"+str(tag)+".txt", np.array(best_score_mem), delimiter=", ")
-                np.savetxt("best_score_time"+str(tag)+".txt", np.array(best_score_timestamp), delimiter=", ")
+                np.savetxt("best_score_time"+str(tag)+".txt", np.array(best_score_timestamp), delimiter=", ")'''
                 return solution_final, best_score
 
             solution, score, improvement, nb_iter = simulated_annealing(solution, t0, cooling, patience_for_ILS, max_duration, start_time)
@@ -91,8 +91,8 @@ def solve_advanced(eternity_puzzle, tag, duration):
                     temp_best_score = score
 
                 if score < best_score:
-                    best_score_mem.append(score)
-                    best_score_timestamp.append(round((time.time() - start_time), 2))
+                    #best_score_mem.append(score)
+                    #best_score_timestamp.append(round((time.time() - start_time), 2))
                     best_sol = solution.copy()
                     best_score = score
             else:
@@ -104,16 +104,16 @@ def solve_advanced(eternity_puzzle, tag, duration):
                 print("Nb of SA iter : ", inside_iter_SA)
                 print("Nb of ILS iter : ", ILS_iter)
                 solution_final = retransform(best_sol)
-                best_score_mem.append(best_score)
+                '''best_score_mem.append(best_score)
                 best_score_timestamp.append(round((time.time() - start_time), 2))
                 best_score_at_restart.append(temp_best_score)
                 np.savetxt("scores_at_restart"+str(tag)+".txt", np.array(best_score_at_restart), delimiter=", ")
                 np.savetxt("best_score_mem"+str(tag)+".txt", np.array(best_score_mem), delimiter=", ")
-                np.savetxt("best_score_time"+str(tag)+".txt", np.array(best_score_timestamp), delimiter=", ")
+                np.savetxt("best_score_time"+str(tag)+".txt", np.array(best_score_timestamp), delimiter=", ")'''
                 return solution_final, best_score
 
         solution = perturbation(solution, perturbation_ratio)
-        best_score_at_restart.append(temp_best_score)
+        #best_score_at_restart.append(temp_best_score)
         temp_best_score = 1000
 
     print("Nb of border iter : ", border_iter)
@@ -121,12 +121,12 @@ def solve_advanced(eternity_puzzle, tag, duration):
     print("Nb of SA iter : ", inside_iter_SA)
     print("Nb of ILS iter : ", ILS_iter)
     solution_final = retransform(best_sol)
-    best_score_mem.append(best_score)
+    '''best_score_mem.append(best_score)
     best_score_timestamp.append(round((time.time() - start_time), 2))
     best_score_at_restart.append(temp_best_score)
     np.savetxt("scores_at_restart"+str(tag)+".txt", np.array(best_score_at_restart), delimiter=", ")
     np.savetxt("best_score_mem"+str(tag)+".txt", np.array(best_score_mem), delimiter=", ")
-    np.savetxt("best_score_time"+str(tag)+".txt", np.array(best_score_timestamp), delimiter=", ")
+    np.savetxt("best_score_time"+str(tag)+".txt", np.array(best_score_timestamp), delimiter=", ")'''
     return solution_final, best_score
 
 

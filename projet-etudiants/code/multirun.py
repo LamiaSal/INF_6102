@@ -7,7 +7,6 @@ import random as r
 #nohup python multirun.py --infile=instances/eternity_complet.txt --nrun=4 --runduration=10800 > logs.txt 2>errors.txt &
 #process 5469
 
-
 def parse_arguments():
     parser = argparse.ArgumentParser()
 
@@ -23,15 +22,16 @@ def parse_arguments():
 
 if __name__ == '__main__':
     args = parse_arguments()
-
-    for tag in range(args.nrun):
-        r.seed(tag)
-        np.random.seed(tag)
-        e = eternity_puzzle.EternityPuzzle(args.infile)
+    files=["instances/eternity_A.txt","instances/eternity_B.txt","instances/eternity_C.txt","instances/eternity_D.txt","instances/eternity_E.txt"]
+    files = files*args.nrun
+    for tag,file in enumerate(files):
+        r.seed(2+(tag//5))
+        np.random.seed(2+(tag//5))
+        e = eternity_puzzle.EternityPuzzle(file)
 
         print("***********************************************************")
         print("[INFO] Start the solving Eternity II - Run : " + str(tag))
-        print("[INFO] input file: %s" % args.infile)
+        print("[INFO] input file: %s" % file)
         print("[INFO] output file: %s" % args.outfile+str(tag)+".txt")
         print("[INFO] visualization file: %s" % args.visufile+str(tag)+".png")
         print("[INFO] board size: %s x %s" % (e.board_size,e.board_size))
