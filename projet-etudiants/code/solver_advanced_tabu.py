@@ -4,8 +4,6 @@ import solver_heuristic_greedy as shg
 #content = np.loadtxt("sample.txt")
 
 def solve_advanced(eternity_puzzle, tag, duration):
-    #TODO : Ajouter listing pour tracé de courbe
-    #TODO : Ajouter mémoire des restarts pour la moyenne globale
     """
     Your solver for the problem
     :param eternity_puzzle: object describing the input
@@ -16,10 +14,11 @@ def solve_advanced(eternity_puzzle, tag, duration):
 
     n = eternity_puzzle.board_size
 
+    #Paramètres
     max_duration = duration  # Temps alloué
-    max_iter_border = int(200)
-    patience_for_SA = int(100)
-    patience_for_ILS = int(100)
+    max_iter_border = int(200) # Nombre d'itérations maximal pour la phase de résolutionde al bordure
+    patience_for_SA = int(100) # Nombre d'itérations maximal sans amélioration du tabou interne avant de passer au SA
+    patience_for_ILS = int(100)  # Nombre d'itérations maximal sans amélioration du SA avant re restart
     t0 = 100
     cooling = 0.99
     perturbation_ratio = 0.5
@@ -28,11 +27,14 @@ def solve_advanced(eternity_puzzle, tag, duration):
     corners, edges, interiors = split(pieces)
     tabu_length = int(1.5 * n * n /4)
 
+    #initialisation
     solution, score = init_greedy(1000, n, corners, edges, interiors)
     print("Init finie, score de départ : ", score)
     best_sol = solution.copy()
     best_score = score
     temp_best_score = score
+
+    #Mémoires pour infos
     border_iter = 0
     inside_iter_tabu = 0
     inside_iter_SA = 0
@@ -41,10 +43,14 @@ def solve_advanced(eternity_puzzle, tag, duration):
     #best_score_timestamp = [0]
     #best_score_at_restart = [best_score]
     while time.time() < max_duration + start_time and best_score > 0:
+
+        #Phase de résolution de la bordure
         ILS_iter += 1
         solution, nb_iter = solve_border(solution, max_iter_border, max_duration, start_time, tabu_length)
         border_iter += nb_iter
         score = evaluation(solution)
+
+        #Mise à jour du meilleur score
         if score < temp_best_score:
             temp_best_score = score
 
@@ -57,10 +63,15 @@ def solve_advanced(eternity_puzzle, tag, duration):
         if time.time() > max_duration + start_time or best_score == 0:
             break
 
+        #Phase de résolution interne
         not_stagnating = True
         while not_stagnating:
+
+            #Recherche tabou
             solution, score, nb_iter = solve_inside(solution, tabu_length, temp_best_score, patience_for_SA, max_duration, start_time)
             inside_iter_tabu += nb_iter
+
+            #Mise à jour
             if score < temp_best_score:
                 temp_best_score = score
 
@@ -70,6 +81,7 @@ def solve_advanced(eternity_puzzle, tag, duration):
                 best_sol = solution.copy()
                 best_score = score
 
+            #Vérification des critères d'arrêt
             if time.time() > max_duration + start_time or best_score == 0:
                 print("Nb of border iter : ", border_iter)
                 print("Nb of tabu iter : ", inside_iter_tabu)
@@ -84,8 +96,11 @@ def solve_advanced(eternity_puzzle, tag, duration):
                 np.savetxt("best_score_time"+str(tag)+".txt", np.array(best_score_timestamp), delimiter=", ")'''
                 return solution_final, best_score
 
+            #On arrive ici si on a stagné donc on passe en phase SA
             solution, score, improvement, nb_iter = simulated_annealing(solution, t0, cooling, patience_for_ILS, max_duration, start_time)
             inside_iter_SA += nb_iter
+
+            #Mise à jour
             if improvement:
                 if score < temp_best_score:
                     temp_best_score = score
@@ -96,8 +111,9 @@ def solve_advanced(eternity_puzzle, tag, duration):
                     best_sol = solution.copy()
                     best_score = score
             else:
-                not_stagnating = False
+                not_stagnating = False # Si le SA a stagné on par sur un restart ILS
 
+            #Critère d'arrêt
             if time.time() > max_duration + start_time or best_score == 0:
                 print("Nb of border iter : ", border_iter)
                 print("Nb of tabu iter : ", inside_iter_tabu)
@@ -112,6 +128,7 @@ def solve_advanced(eternity_puzzle, tag, duration):
                 np.savetxt("best_score_time"+str(tag)+".txt", np.array(best_score_timestamp), delimiter=", ")'''
                 return solution_final, best_score
 
+        #Arrivé ici SA a stagné on perturbe et on restart
         solution = perturbation(solution, perturbation_ratio)
         #best_score_at_restart.append(temp_best_score)
         temp_best_score = 1000
@@ -161,6 +178,9 @@ def retransform(solution):
 
 
 def split(pieces):
+    """
+    Séparation des pièces (coins, bords, centre) par type dans 3 tableaux
+    """
     n = int(np.sqrt(len(pieces)))
 
     counts = np.sum(pieces == 0, axis=1)
@@ -177,6 +197,10 @@ def split(pieces):
 
 
 def evaluation(solution):
+    """
+    :param solution: solution sous forme de tableau
+    :return: évaluation complète des conflits dans la solution
+    """
     n = len(solution)
     vertical = solution[:n-1,:,2] != solution[1:,:,0]
     horizontal = solution[:,:n-1,1] != solution[:,1:,3]
@@ -194,6 +218,9 @@ def evaluation(solution):
 ########################################################################################################################
 ########################################################################################################################
 def init_semi_random(k, n, corners, edges, interiors):
+    """
+    Initialisation aléatoire mais respecantant les types de pièces et forçant l'orientation des pièces de la bordure
+    """
     best_sol = None
     best_score = 1000
     for i in range(k - 1):
@@ -320,6 +347,9 @@ def init_semi_random(k, n, corners, edges, interiors):
 
 
 def init_greedy(k, n, corners, edges, interiors):
+    """
+    Invocation de l'heuristique greedy pour l'initialisation
+    """
     best_sol = shg.generate_solution(n, corners, edges, interiors)
     best_score = evaluation(best_sol)
     for i in range(k - 1):
@@ -338,6 +368,15 @@ def init_greedy(k, n, corners, edges, interiors):
 
 
 def solve_border(solution, max_iter, max_duration, start_time, tabu_length):
+    """
+    Phase de résolution de la bordure
+    :param solution: solution de départ
+    :param max_iter: nombre maximalde d'itération de recherche sur la bordure
+    :param max_duration: durée maximale de la recherche au total
+    :param start_time: temps de départ de la recherche complète
+    :param tabu_length: nombre d'itérations durant lesquelles un move est tabu
+    :return:
+    """
     n = len(solution)
 
     score = eval_border(solution)
@@ -347,6 +386,7 @@ def solve_border(solution, max_iter, max_duration, start_time, tabu_length):
 
     tabu_dict = dict()
 
+    #Initialisation de la matrice cache des valeurs des voisins
     delta_matrix = np.zeros(((n-1)*4,(n-1)*4), dtype=np.int8)
     for p1 in range((n-1)*4):
         for p2 in range(p1):
@@ -358,9 +398,12 @@ def solve_border(solution, max_iter, max_duration, start_time, tabu_length):
             else:
                 delta_matrix[p1,p2] = eval_delta_edges(solution, p1, p2)
 
+    #Boucle de recherche tabou
     while nb_iter < max_iter and time.time() < max_duration + start_time and best_score > 0:
         nb_iter += 1
 
+
+        #Recherche des meilleures voisins
         best_moves = []
         best_cost = 10
         for p1 in range((n - 1) * 4):
@@ -382,9 +425,11 @@ def solve_border(solution, max_iter, max_duration, start_time, tabu_length):
                     elif temp_cost == best_cost:
                         best_moves.append((p1, p2))
 
+        #CHoix d'un meilleur voisin aléatoire
         p1, p2 = best_moves[np.random.randint(len(best_moves))]
         tabu_dict[(p1, p2)] = nb_iter
 
+        #Application du voisin
         if p1 < n - 1:
             side1 = 0
             p1_i = 0
@@ -423,12 +468,15 @@ def solve_border(solution, max_iter, max_duration, start_time, tabu_length):
         solution[p2_i,p2_j,:] = piece1
         solution[p1_i,p1_j,:] = piece2
 
+        # Calcul du nouveau score
         score += delta_matrix[p1,p2]
         if score < best_score:
             best_sol = solution.copy()
             best_score = score
         if score == 0:
             break
+
+        #Voisins affectés par le swap à recalculer
         pieces_to_update = {p1, p2}
         if p2 == 0:
             pieces_to_update.update([(n - 1) * 4 -1,1])
@@ -462,6 +510,9 @@ def solve_border(solution, max_iter, max_duration, start_time, tabu_length):
 
 
 def eval_border(solution):
+    """
+    Evaluation tenant compte uniquement des conflits internes à la bordure
+    """
     n = len(solution)
     top = solution[0,:n-1,1] != solution[0,1:,3]
     bot = solution[n-1,:n-1,1] != solution[n-1,1:,3]
@@ -472,6 +523,9 @@ def eval_border(solution):
 
 
 def eval_delta_edges(solution, p1, p2):
+    """
+    Evaluation de voisin relative pour les pièces de type côté en ne tenant compte que des couleurs adjacentes pour aller plsu vite
+    """
     n = len(solution)
     if p1 < n - 1:
         side1 = 0
@@ -570,6 +624,9 @@ def eval_delta_edges(solution, p1, p2):
 
 
 def eval_delta_corners(solution, p1, p2):
+    """
+        Evaluation de voisin relative pour les pièces de type coins en ne tenant compte que des couleurs adjacentes pour aller plsu vite
+    """
     n = len(solution)
     if p1 < n - 1:
         side1 = 0
@@ -653,6 +710,16 @@ def eval_delta_corners(solution, p1, p2):
 
 
 def solve_inside(solution, tabu_length, temp_best_score, patience_for_SA, max_duration, start_time):
+    """
+    Phase de résolution interne
+    :param solution: solution de départ
+    :param temp_best_score: meilleur score obtenu sur l'itération ILS en cours pour critère d'aspiration
+    :param patience_for_SA: nombre maximalde d'itération de recherche avant de considérer que l'on stagne et de passer sur le SA
+    :param max_duration: durée maximale de la recherche au total
+    :param start_time: temps de départ de la recherche complète
+    :param tabu_length: nombre d'itérations durant lesquelles un move est tabu
+    :return:
+    """
     n = len(solution)
     n_pieces = (n - 2) ** 2
 
@@ -663,12 +730,15 @@ def solve_inside(solution, tabu_length, temp_best_score, patience_for_SA, max_du
 
     tabu_dict = dict()
 
+    #Initialisation des valeurs du voisinages en n^2
     delta_matrix = create_delta_matrix(solution)
 
+    #Boucle tabou
     stagnating = 0
     while stagnating < patience_for_SA and time.time() < max_duration + start_time and best_score > 0:
         nb_iter += 1
 
+        #Recherche des meilleurs moves
         best_moves = []
         best_cost = 10
         for p1 in range(n_pieces):
@@ -689,9 +759,11 @@ def solve_inside(solution, tabu_length, temp_best_score, patience_for_SA, max_du
                             elif temp_cost == best_cost:
                                 best_moves.append((p1, p2, roll1, roll2))
 
+        #CHoix aléatoire d'un meilleur move
         p1, p2, roll1, roll2 = best_moves[np.random.randint(len(best_moves))]
         tabu_dict[(p1, p2)] = nb_iter
 
+        #Application du move
         p1_i = (p1 // (n-2)) + 1
         p1_j = (p1 % (n-2)) + 1
         p2_i = (p2 // (n-2)) + 1
@@ -702,6 +774,7 @@ def solve_inside(solution, tabu_length, temp_best_score, patience_for_SA, max_du
         solution[p2_i, p2_j, :] = piece1
         solution[p1_i, p1_j, :] = piece2
 
+        #Calcul du score
         delta = delta_matrix[p1, p2, roll1, roll2]
         score += delta
 
@@ -716,6 +789,7 @@ def solve_inside(solution, tabu_length, temp_best_score, patience_for_SA, max_du
         if score == 0:
             break
 
+        #Mise à jour des valeurs de voisinage pour les voisins affectés
         pieces_to_update = {p1,p2}
         if p1_i > 1:
             pieces_to_update.add(p1-n+2)
@@ -749,6 +823,9 @@ def solve_inside(solution, tabu_length, temp_best_score, patience_for_SA, max_du
 
 
 def eval_delta_inside(solution, p1, p2, roll1, roll2):
+    """
+    Evaluation rapide de l'impacte d'un swap en observant que les couleurs adjacentes aux pièces swap plutot que faire deux évaluation completes
+    """
     n = len(solution)
     p1_i = (p1 // (n-2)) + 1
     p1_j = (p1 % (n-2)) + 1
@@ -796,6 +873,11 @@ def create_delta_matrix(solution):
 
 
 def simulated_annealing(solution, t0, cooling, patience_for_ILS, max_duration, start_time):
+    """
+    Diversification par simulated annealing
+    On génère un move et on check son coût.
+    En fonction de celui-ci on l'accepte ou pas avec une certaine probabilité
+    """
     n = len(solution)
     n_pieces = (n-2)**2
     temperature = t0
@@ -808,6 +890,7 @@ def simulated_annealing(solution, t0, cooling, patience_for_ILS, max_duration, s
     while stagnating < patience_for_ILS and time.time() < max_duration + start_time:
         nb_iter += 1
 
+        #Choix d'un mvoe aléatoire
         p1 = np.random.randint(1,n_pieces)
         p2 = np.random.randint(p1)
         roll1 = np.random.randint(4)
@@ -817,12 +900,14 @@ def simulated_annealing(solution, t0, cooling, patience_for_ILS, max_duration, s
         proba = np.exp(-delta / temperature)
         temperature *= cooling
 
+        #Choix d'application ou pas
         if delta < 0:
-            return solution, score, True, nb_iter
+            return solution, score, True, nb_iter #On sort si c'est une amélioration
         elif np.random.rand() > proba:
             stagnating += 1
             continue
 
+        #Application et recalcul
         score += delta
         stagnating += 1
 
@@ -868,6 +953,10 @@ def simulated_annealing(solution, t0, cooling, patience_for_ILS, max_duration, s
 
 
 def perturbation(solution, perturbation_ratio):
+    """
+    Perturbation en faisant des swap alétoires de couples de pièces homogènes
+    On respecte l'orientation pour la bordure en tout temps
+    """
     n = len(solution)
     n_pieces = n**2
     nb_of_swap = int(n_pieces * perturbation_ratio)

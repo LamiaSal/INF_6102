@@ -3,7 +3,7 @@ import numpy as np
 import random as r
 r.seed(0)
 np.random.seed(0)
-#python main.py --agent=advanced --infile=instances/eternity_B.txt
+
 
 def solve_advanced(eternity_puzzle):
     """
