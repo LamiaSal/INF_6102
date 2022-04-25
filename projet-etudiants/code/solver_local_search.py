@@ -45,7 +45,7 @@ def solve_local_search(eternity_puzzle):
     num_iter = 0
     t0 = t.time()
     moyenne = 0
-    while t.time()-t0 < max_duration and  num_iter <1000:
+    while t.time()-t0 < max_duration and  num_iter <1000000:
         solution, sol_cost = hill_climbing_first_improv(solution,sol_cost, n, board_size, eternity_puzzle)
 
         
